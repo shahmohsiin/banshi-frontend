@@ -151,18 +151,7 @@ The app uses a consistent design system defined in `app/theme.ts`:
 - **ESLint**: Code linting
 - **Babel**: JavaScript compiler
 
-## 🤝 Contributing
 
-We welcome contributions from the community! Here's how you can help:
-
-### 🐛 Reporting Bugs
-
-1. Check existing issues to avoid duplicates
-2. Create a new issue with:
-   - Clear description of the problem
-   - Steps to reproduce
-   - Expected vs actual behavior
-   - Device/OS information
 
 ### 💡 Suggesting Features
 
