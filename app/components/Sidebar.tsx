@@ -2,12 +2,12 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React from 'react';
 import {
-    Alert,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  Alert,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { theme } from '../theme';
 
@@ -69,13 +69,23 @@ export const Sidebar: React.FC<SidebarProps> = ({ isVisible, onClose, activeRout
     },
     {
       id: 'funds',
-      title: 'Funds',
+      title: 'Add Funds',
       icon: 'business',
       onPress: () => {
-        Alert.alert('Funds', 'Funds management');
+        router.push('/(app)/add-fund');
         onClose();
       },
       isActive: activeRoute === 'funds',
+    },
+    {
+      id: 'withdraw',
+      title: 'Withdraw',
+      icon: 'download',
+      onPress: () => {
+        router.push('/(app)/withdraw');
+        onClose();
+      },
+      isActive: activeRoute === 'withdraw',
     },
     {
       id: 'history',
@@ -92,7 +102,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isVisible, onClose, activeRout
       title: 'Game Rates',
       icon: 'logo-bitcoin',
       onPress: () => {
-        Alert.alert('Game Rates', 'Current game rates');
+        router.push('/(app)/game-rates' as any);
         onClose();
       },
       isActive: activeRoute === 'rates',
@@ -112,7 +122,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isVisible, onClose, activeRout
       title: 'Contact Us',
       icon: 'people',
       onPress: () => {
-        Alert.alert('Contact Us', 'Customer support');
+        router.push('/(app)/contact-us' as any);
         onClose();
       },
       isActive: activeRoute === 'contact',
@@ -204,9 +214,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isVisible, onClose, activeRout
 
         {/* Bottom Element */}
         <View style={styles.footer}>
-          <TouchableOpacity style={styles.bottomButton}>
-            <Ionicons name="square" size={20} color={theme.colors.darkGray} />
-          </TouchableOpacity>
+          
         </View>
       </View>
     </View>

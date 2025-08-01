@@ -1,18 +1,27 @@
 import { Ionicons } from '@expo/vector-icons';
-import React, { useState } from 'react';
+import { router } from 'expo-router';
+import React, { useEffect, useState } from 'react';
 import {
   SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
-  View,
+  View
 } from 'react-native';
 import { Sidebar } from '../components/Sidebar';
+import { StartupModal } from '../components/StartupModal';
 import { theme } from '../theme';
 
 export default function HomeScreen() {
   const [sidebarVisible, setSidebarVisible] = useState(false);
+  const [showStartupModal, setShowStartupModal] = useState(true);
+
+  useEffect(() => {
+    // Show startup modal when component mounts
+    // You can add logic here to check if it's the first time opening the app
+    // For now, we'll show it every time
+  }, []);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -24,8 +33,24 @@ export default function HomeScreen() {
         >
           <Ionicons name="menu" size={24} color={theme.colors.white} />
         </TouchableOpacity>
-       
         
+     
+        
+        <View style={styles.headerRight}>
+          <TouchableOpacity 
+            style={styles.notificationButton}
+            onPress={() => router.push('/(app)/notice')}
+          >
+            <Ionicons name="notifications" size={24} color={theme.colors.white} />
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={styles.walletButton}
+            onPress={() => router.push('/(app)/wallet')}
+          >
+            <Ionicons name="diamond" size={24} color="#4FC3F7" />
+            <Text style={styles.walletAmount}>5</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       <ScrollView style={styles.scrollView}>
@@ -54,13 +79,19 @@ export default function HomeScreen() {
             </TouchableOpacity>
           </View>
           <View style={styles.buttonRow}>
-            <TouchableOpacity style={styles.actionButton}>
+            <TouchableOpacity 
+              style={styles.actionButton}
+              onPress={() => router.push('/(app)/add-fund')}
+            >
               <View style={styles.buttonIcon}>
                 <Ionicons name="add-circle" size={24} color={theme.colors.white} />
               </View>
               <Text style={styles.buttonText}>Add Funds</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.actionButton}>
+            <TouchableOpacity 
+              style={styles.actionButton}
+              onPress={() => router.push('/(app)/withdraw')}
+            >
               <View style={styles.buttonIcon}>
                 <Ionicons name="download" size={24} color={theme.colors.white} />
               </View>
@@ -95,6 +126,12 @@ export default function HomeScreen() {
         onClose={() => setSidebarVisible(false)}
         activeRoute="home"
       />
+
+      {/* Startup Modal */}
+      <StartupModal
+        isVisible={showStartupModal}
+        onClose={() => setShowStartupModal(false)}
+      />
     </SafeAreaView>
   );
 }
@@ -117,11 +154,28 @@ const styles = StyleSheet.create({
     padding: theme.spacing.xs,
   },
   headerTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: theme.colors.white,
+  },
+  headerRight: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   notificationButton: {
     padding: theme.spacing.xs,
+    marginRight: theme.spacing.sm,
+  },
+  walletButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: theme.spacing.xs,
+  },
+  walletAmount: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: theme.colors.white,
+    marginLeft: theme.spacing.xs,
   },
   scrollView: {
     flex: 1,
