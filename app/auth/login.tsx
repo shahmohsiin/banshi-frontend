@@ -2,39 +2,80 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React, { useState } from 'react';
 import {
-  Alert,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    Alert,
+    KeyboardAvoidingView,
+    Platform,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from 'react-native';
+import { API_CONFIG, apiRequest } from '../config/api';
 import { theme } from '../theme';
 
+interface LoginData {
+  phone: string;
+  password: string;
+}
+
 export default function LoginScreen() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [formData, setFormData] = useState<LoginData>({
+    phone: '',
+    password: '',
+  });
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleLogin = async () => {
-    if (!email || !password) {
-      Alert.alert('Error', 'Please fill in all fields');
-      return;
+  const updateFormData = (field: keyof LoginData, value: string) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+  };
+
+  const validateForm = (): boolean => {
+    if (!formData.phone.trim()) {
+      Alert.alert('Error', 'Please enter your phone number');
+      return false;
     }
+    if (!formData.password) {
+      Alert.alert('Error', 'Please enter your password');
+      return false;
+    }
+    return true;
+  };
+
+  const handleLogin = async () => {
+    if (!validateForm()) return;
 
     setIsLoading(true);
+    
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Navigate to main app
-      router.replace('/(app)');
+      const response = await apiRequest(API_CONFIG.ENDPOINTS.SIGNIN, {
+        method: 'POST',
+        body: JSON.stringify(formData),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        // Store token if provided in response
+        if (data.token) {
+          // TODO: Store token securely (e.g., using AsyncStorage or SecureStore)
+          console.log('Token received:', data.token);
+        }
+        
+        Alert.alert('Success', 'Login successful!', [
+          {
+            text: 'OK',
+            onPress: () => router.replace('/(app)'),
+          },
+        ]);
+      } else {
+        Alert.alert('Error', data.message || 'Login failed. Please check your credentials.');
+      }
     } catch (error) {
-      Alert.alert('Error', 'Login failed. Please try again.');
+      console.error('Login error:', error);
+      Alert.alert('Error', 'Network error. Please check your connection and try again.');
     } finally {
       setIsLoading(false);
     }
@@ -49,8 +90,8 @@ export default function LoginScreen() {
   };
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
+    <KeyboardAvoidingView 
+      style={styles.container} 
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <ScrollView contentContainerStyle={styles.scrollContainer}>
@@ -62,63 +103,64 @@ export default function LoginScreen() {
 
         {/* Form */}
         <View style={styles.form}>
+          {/* Phone Input */}
           <View style={styles.inputContainer}>
-            <Ionicons name="mail" size={20} color={theme.colors.darkGray} style={styles.inputIcon} />
+            <Ionicons name="call" size={20} color={theme.colors.darkGray} style={styles.inputIcon} />
             <TextInput
               style={styles.input}
-              placeholder="Email or Phone Number"
-              placeholderTextColor={theme.colors.darkGray}
-              value={email}
-              onChangeText={setEmail}
-              keyboardType="email-address"
-              autoCapitalize="none"
+              placeholder="Phone Number"
+              value={formData.phone}
+              onChangeText={(value) => updateFormData('phone', value)}
+              keyboardType="phone-pad"
             />
           </View>
 
+          {/* Password Input */}
           <View style={styles.inputContainer}>
             <Ionicons name="lock-closed" size={20} color={theme.colors.darkGray} style={styles.inputIcon} />
             <TextInput
               style={styles.input}
               placeholder="Password"
-              placeholderTextColor={theme.colors.darkGray}
-              value={password}
-              onChangeText={setPassword}
+              value={formData.password}
+              onChangeText={(value) => updateFormData('password', value)}
               secureTextEntry={!showPassword}
             />
-            <TouchableOpacity
+            <TouchableOpacity 
               style={styles.eyeIcon}
               onPress={() => setShowPassword(!showPassword)}
             >
-              <Ionicons
-                name={showPassword ? 'eye-off' : 'eye'}
-                size={20}
-                color={theme.colors.darkGray}
+              <Ionicons 
+                name={showPassword ? "eye-off" : "eye"} 
+                size={20} 
+                color={theme.colors.darkGray} 
               />
             </TouchableOpacity>
           </View>
 
+          {/* Forgot Password */}
           <TouchableOpacity style={styles.forgotPassword} onPress={handleForgotPassword}>
             <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity
+          {/* Login Button */}
+          <TouchableOpacity 
             style={[styles.loginButton, isLoading && styles.loginButtonDisabled]}
             onPress={handleLogin}
             disabled={isLoading}
           >
-            {isLoading ? (
-              <Text style={styles.loginButtonText}>Loading...</Text>
-            ) : (
-              <Text style={styles.loginButtonText}>Login</Text>
-            )}
+            <Text style={styles.loginButtonText}>
+              {isLoading ? 'Loading...' : 'Login'}
+            </Text>
           </TouchableOpacity>
 
+          {/* Divider */}
           <View style={styles.divider}>
             <View style={styles.dividerLine} />
             <Text style={styles.dividerText}>OR</Text>
             <View style={styles.dividerLine} />
           </View>
 
+          {/* Sign Up Link */}
           <TouchableOpacity style={styles.signUpButton} onPress={handleSignUp}>
             <Text style={styles.signUpText}>
               Don't have an account? <Text style={styles.signUpLink}>Sign Up</Text>

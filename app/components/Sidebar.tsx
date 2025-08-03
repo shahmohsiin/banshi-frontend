@@ -2,16 +2,16 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React from 'react';
 import {
-  Alert,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
+    Alert,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from 'react-native';
 import { theme } from '../theme';
 
-interface SidebarMenuItem {
+interface MenuItem {
   id: string;
   title: string;
   icon: keyof typeof Ionicons.glyphMap;
@@ -31,22 +31,17 @@ export const Sidebar: React.FC<SidebarProps> = ({ isVisible, onClose, activeRout
       'Logout',
       'Are you sure you want to logout?',
       [
-        {
-          text: 'Cancel',
-          style: 'cancel',
-        },
-        {
-          text: 'Logout',
-          style: 'destructive',
-          onPress: () => {
-            router.replace('/auth/login');
-          },
+        { text: 'Cancel', style: 'cancel' },
+        { 
+          text: 'Logout', 
+          style: 'destructive', 
+          onPress: () => router.replace('/auth/login') 
         },
       ]
     );
   };
 
-  const menuItems: SidebarMenuItem[] = [
+  const menuItems: MenuItem[] = [
     {
       id: 'home',
       title: 'Home',
@@ -56,6 +51,16 @@ export const Sidebar: React.FC<SidebarProps> = ({ isVisible, onClose, activeRout
         onClose();
       },
       isActive: activeRoute === 'home',
+    },
+    {
+      id: 'games',
+      title: 'Games',
+      icon: 'game-controller',
+      onPress: () => {
+        router.push('/(app)/games');
+        onClose();
+      },
+      isActive: activeRoute === 'games',
     },
     {
       id: 'profile',
@@ -212,7 +217,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isVisible, onClose, activeRout
           ))}
         </ScrollView>
 
-        {/* Bottom Element */}
+        {/* Footer */}
         <View style={styles.footer}>
           
         </View>
@@ -242,10 +247,7 @@ const styles = StyleSheet.create({
     height: '100%',
     backgroundColor: theme.colors.gray,
     shadowColor: theme.colors.black,
-    shadowOffset: {
-      width: 2,
-      height: 0,
-    },
+    shadowOffset: { width: 2, height: 0 },
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
     elevation: 5,
@@ -318,13 +320,5 @@ const styles = StyleSheet.create({
     paddingVertical: theme.spacing.lg,
     borderTopWidth: 1,
     borderTopColor: theme.colors.lightGray,
-  },
-  bottomButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: theme.colors.white,
-    justifyContent: 'center',
-    alignItems: 'center',
   },
 }); 

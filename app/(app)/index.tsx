@@ -2,51 +2,104 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
-  SafeAreaView,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View
+    SafeAreaView,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View
 } from 'react-native';
 import { Sidebar } from '../components/Sidebar';
 import { StartupModal } from '../components/StartupModal';
+import { useGame } from '../hooks/useGame';
+import { GameItem } from '../services/gameApi';
 import { theme } from '../theme';
 
 export default function HomeScreen() {
-  const [sidebarVisible, setSidebarVisible] = useState(false);
-  const [showStartupModal, setShowStartupModal] = useState(true);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [showWelcomeModal, setShowWelcomeModal] = useState(true);
+  const { state, fetchGames } = useGame();
 
   useEffect(() => {
-    // Show startup modal when component mounts
-    // You can add logic here to check if it's the first time opening the app
-    // For now, we'll show it every time
+    fetchGames();
   }, []);
+
+  const handleMenuPress = () => setIsSidebarOpen(true);
+  const handleCloseSidebar = () => setIsSidebarOpen(false);
+  const handleCloseModal = () => setShowWelcomeModal(false);
+
+  const goToNotifications = () => router.push('/(app)/notice');
+  const goToWallet = () => router.push('/(app)/wallet');
+  const goToAddFunds = () => router.push('/(app)/add-fund');
+  const goToWithdraw = () => router.push('/(app)/withdraw');
+
+  const renderGameItem = (game: GameItem) => (
+    <View key={game.id} style={styles.gameCard}>
+      {/* Chart Button */}
+      <View style={styles.gameLeft}>
+        <TouchableOpacity style={styles.chartButton}>
+          <View style={styles.chartIcon}>
+            <Ionicons name="bar-chart" size={20} color={theme.colors.white} />
+          </View>
+          <Text style={styles.chartText}>CHART</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Game Info */}
+      <View style={styles.gameCenter}>
+        <Text style={styles.gameName}>{game.name.toUpperCase()}</Text>
+        <Text style={styles.gameNumbers}>{game.currentNumbers}</Text>
+        <View style={styles.gameTiming}>
+          <Text style={styles.timingText}>OPEN: {game.openTime}</Text>
+          <Text style={styles.timingText}>CLOSE: {game.closeTime}</Text>
+        </View>
+      </View>
+
+      {/* Play Button */}
+      <View style={styles.gameRight}>
+        <Text style={[
+          styles.statusText, 
+          { color: getStatusColor(game.status) }
+        ]}>
+          {getStatusText(game.status).toUpperCase()}
+        </Text>
+        <TouchableOpacity 
+          style={[
+            styles.playButton,
+            { backgroundColor: game.status === 'running' ? theme.colors.green : theme.colors.darkGray }
+          ]}
+          disabled={game.status !== 'running'}
+        >
+          <Ionicons name="play" size={24} color={theme.colors.white} />
+        </TouchableOpacity>
+        <Text style={styles.playText}>PLAY GAME</Text>
+      </View>
+    </View>
+  );
+
+  const getStatusColor = (status: string) => {
+    if (status === 'running') return theme.colors.green;
+    if (status === 'closed') return theme.colors.red;
+    return theme.colors.blue;
+  };
+
+  const getStatusText = (status: string) => {
+    return status.charAt(0).toUpperCase() + status.slice(1);
+  };
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Custom Header */}
+      {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.menuButton}
-          onPress={() => setSidebarVisible(true)}
-        >
+        <TouchableOpacity style={styles.menuButton} onPress={handleMenuPress}>
           <Ionicons name="menu" size={24} color={theme.colors.white} />
         </TouchableOpacity>
         
-     
-        
         <View style={styles.headerRight}>
-          <TouchableOpacity 
-            style={styles.notificationButton}
-            onPress={() => router.push('/(app)/notice')}
-          >
+          <TouchableOpacity style={styles.notificationButton} onPress={goToNotifications}>
             <Ionicons name="notifications" size={24} color={theme.colors.white} />
           </TouchableOpacity>
-          <TouchableOpacity 
-            style={styles.walletButton}
-            onPress={() => router.push('/(app)/wallet')}
-          >
+          <TouchableOpacity style={styles.walletButton} onPress={goToWallet}>
             <Ionicons name="diamond" size={24} color="#4FC3F7" />
             <Text style={styles.walletAmount}>5</Text>
           </TouchableOpacity>
@@ -54,53 +107,30 @@ export default function HomeScreen() {
       </View>
 
       <ScrollView style={styles.scrollView}>
-        {/* Welcome Banner */}
-      
-
-        {/* App Name */}
-        <View style={styles.appNameSection}>
-          <Text style={styles.appName}>BANSHI</Text>
+        {/* App Title */}
+        <View style={styles.appTitleSection}>
+          <Text style={styles.appTitle}>BANSHI</Text>
         </View>
 
-        {/* Action Buttons */}
-        <View style={styles.actionButtons}>
-          <View style={styles.buttonRow}>
-            <TouchableOpacity style={styles.actionButton}>
-              <View style={styles.buttonIcon}>
-                <Ionicons name="star" size={24} color={theme.colors.white} />
-              </View>
-              <Text style={styles.buttonText}>Play StarLine</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.actionButton}>
-              <View style={styles.buttonIcon}>
-                <Ionicons name="snow" size={24} color={theme.colors.white} />
-              </View>
-              <Text style={styles.buttonText}>Gali Disawar</Text>
-            </TouchableOpacity>
-          </View>
-          <View style={styles.buttonRow}>
-            <TouchableOpacity 
-              style={styles.actionButton}
-              onPress={() => router.push('/(app)/add-fund')}
-            >
-              <View style={styles.buttonIcon}>
+        {/* Quick Actions */}
+        <View style={styles.quickActions}>
+          <View style={styles.actionRow}>
+            <TouchableOpacity style={styles.actionButton} onPress={goToAddFunds}>
+              <View style={styles.actionIcon}>
                 <Ionicons name="add-circle" size={24} color={theme.colors.white} />
               </View>
-              <Text style={styles.buttonText}>Add Funds</Text>
+              <Text style={styles.actionText}>Add Funds</Text>
             </TouchableOpacity>
-            <TouchableOpacity 
-              style={styles.actionButton}
-              onPress={() => router.push('/(app)/withdraw')}
-            >
-              <View style={styles.buttonIcon}>
+            <TouchableOpacity style={styles.actionButton} onPress={goToWithdraw}>
+              <View style={styles.actionIcon}>
                 <Ionicons name="download" size={24} color={theme.colors.white} />
               </View>
-              <Text style={styles.buttonText}>Withdraw</Text>
+              <Text style={styles.actionText}>Withdraw</Text>
             </TouchableOpacity>
           </View>
         </View>
 
-        {/* Social Media Buttons */}
+        {/* Social Links */}
         <View style={styles.socialSection}>
           <Text style={styles.sectionTitle}>Connect With Us</Text>
           <View style={styles.socialButtons}>
@@ -115,22 +145,39 @@ export default function HomeScreen() {
           </View>
         </View>
 
-
-        
-      
+        {/* Games List */}
+        <View style={styles.gamesSection}>
+          <View style={styles.gamesHeader}>
+            <Text style={styles.gamesTitle}>ALL GAMES</Text>
+            <Text style={styles.gamesSubtitle}>Choose your favorite game to play</Text>
+          </View>
+          <View style={styles.gamesList}>
+            {state.loading ? (
+              <View style={styles.loadingContainer}>
+                <Text style={styles.loadingText}>LOADING GAMES...</Text>
+              </View>
+            ) : state.games.length === 0 ? (
+              <View style={styles.emptyContainer}>
+                <Text style={styles.emptyText}>NO GAMES AVAILABLE</Text>
+              </View>
+            ) : (
+              state.games.map(renderGameItem)
+            )}
+          </View>
+        </View>
       </ScrollView>
 
       {/* Sidebar */}
       <Sidebar
-        isVisible={sidebarVisible}
-        onClose={() => setSidebarVisible(false)}
+        isVisible={isSidebarOpen}
+        onClose={handleCloseSidebar}
         activeRoute="home"
       />
 
-      {/* Startup Modal */}
+      {/* Welcome Modal */}
       <StartupModal
-        isVisible={showStartupModal}
-        onClose={() => setShowStartupModal(false)}
+        isVisible={showWelcomeModal}
+        onClose={handleCloseModal}
       />
     </SafeAreaView>
   );
@@ -148,15 +195,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: theme.spacing.lg,
     paddingVertical: theme.spacing.md,
-    paddingTop: 50, // Add margin top to push below status bar
+    paddingTop: 50,
   },
   menuButton: {
     padding: theme.spacing.xs,
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: theme.colors.white,
   },
   headerRight: {
     flexDirection: 'row',
@@ -180,38 +222,25 @@ const styles = StyleSheet.create({
   scrollView: {
     flex: 1,
   },
-  welcomeBanner: {
-    backgroundColor: theme.colors.primary,
-    paddingVertical: theme.spacing.md,
-    paddingHorizontal: theme.spacing.lg,
-    alignItems: 'center',
-  },
-  welcomeText: {
-    color: theme.colors.red,
-    fontSize: 16,
-    fontWeight: 'bold',
-    textAlign: 'center',
-  },
-  appNameSection: {
+  appTitleSection: {
     backgroundColor: theme.colors.primary,
     paddingVertical: theme.spacing.lg,
     alignItems: 'center',
   },
-  appName: {
+  appTitle: {
     color: theme.colors.white,
     fontSize: 32,
     fontWeight: 'bold',
     textAlign: 'center',
   },
-  actionButtons: {
+  quickActions: {
     backgroundColor: theme.colors.primary,
     paddingHorizontal: theme.spacing.lg,
     paddingVertical: theme.spacing.md,
   },
-  buttonRow: {
+  actionRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: theme.spacing.md,
   },
   actionButton: {
     backgroundColor: 'rgba(255, 255, 255, 0.1)',
@@ -221,7 +250,7 @@ const styles = StyleSheet.create({
     flex: 1,
     marginHorizontal: theme.spacing.xs,
   },
-  buttonIcon: {
+  actionIcon: {
     width: 40,
     height: 40,
     borderRadius: 20,
@@ -230,7 +259,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: theme.spacing.sm,
   },
-  buttonText: {
+  actionText: {
     color: theme.colors.white,
     fontSize: 14,
     fontWeight: 'bold',
@@ -270,71 +299,151 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     marginLeft: theme.spacing.sm,
   },
-  statsSection: {
+  gamesSection: {
     padding: theme.spacing.lg,
-  },
-  statsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-  },
-  statCard: {
     backgroundColor: theme.colors.gray,
-    borderRadius: theme.borderRadius.md,
-    padding: theme.spacing.md,
-    width: '48%',
-    alignItems: 'center',
-    marginBottom: theme.spacing.md,
+    marginHorizontal: -theme.spacing.lg,
+    marginTop: theme.spacing.lg,
   },
-  statValue: {
+  gamesHeader: {
+    alignItems: 'center',
+    marginBottom: theme.spacing.lg,
+    paddingHorizontal: theme.spacing.lg,
+  },
+  gamesTitle: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: theme.colors.black,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+  },
+  gamesSubtitle: {
+    fontSize: 16,
+    color: theme.colors.darkGray,
+    marginTop: theme.spacing.xs,
+    textAlign: 'center',
+  },
+  gamesList: {
+    gap: theme.spacing.md,
+    paddingHorizontal: theme.spacing.lg,
+  },
+  gameCard: {
+    flexDirection: 'row',
+    backgroundColor: theme.colors.white,
+    borderRadius: theme.borderRadius.lg,
+    padding: theme.spacing.lg,
+    shadowColor: theme.colors.black,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 5,
+    borderWidth: 1,
+    borderColor: theme.colors.lightGray,
+  },
+  gameLeft: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: theme.spacing.md,
+  },
+  chartButton: {
+    alignItems: 'center',
+  },
+  chartIcon: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: theme.colors.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: theme.spacing.sm,
+    shadowColor: theme.colors.primary,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  chartText: {
+    fontSize: 12,
+    color: theme.colors.darkGray,
+    fontWeight: 'bold',
+    letterSpacing: 0.5,
+  },
+  gameCenter: {
+    flex: 1,
+    justifyContent: 'center',
+  },
+  gameName: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: theme.colors.black,
+    marginBottom: theme.spacing.sm,
+    letterSpacing: 0.5,
+  },
+  gameNumbers: {
     fontSize: 20,
     fontWeight: 'bold',
     color: theme.colors.primary,
-    marginBottom: theme.spacing.xs,
+    marginBottom: theme.spacing.sm,
+    letterSpacing: 1,
   },
-  statLabel: {
-    fontSize: 14,
-    color: theme.colors.darkGray,
+  gameTiming: {
+    marginTop: theme.spacing.sm,
   },
-  activitySection: {
-    padding: theme.spacing.lg,
-  },
-  activityList: {
-    backgroundColor: theme.colors.gray,
-    borderRadius: theme.borderRadius.md,
-    padding: theme.spacing.md,
-  },
-  activityItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: theme.spacing.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.lightGray,
-  },
-  activityIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: theme.colors.white,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: theme.spacing.md,
-  },
-  activityContent: {
-    flex: 1,
-  },
-  activityTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: theme.colors.black,
-  },
-  activityTime: {
+  timingText: {
     fontSize: 12,
     color: theme.colors.darkGray,
+    marginBottom: 2,
+    fontWeight: '500',
+    letterSpacing: 0.3,
   },
-  activityAmount: {
-    fontSize: 16,
+  gameRight: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: theme.spacing.md,
+  },
+  statusText: {
+    fontSize: 12,
     fontWeight: 'bold',
-    color: theme.colors.green,
+    marginBottom: theme.spacing.sm,
+    letterSpacing: 0.5,
+  },
+  playButton: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: theme.spacing.sm,
+    shadowColor: theme.colors.black,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  playText: {
+    fontSize: 12,
+    color: theme.colors.darkGray,
+    fontWeight: 'bold',
+    letterSpacing: 0.5,
+  },
+  loadingContainer: {
+    alignItems: 'center',
+    padding: theme.spacing.xl,
+  },
+  loadingText: {
+    fontSize: 16,
+    color: theme.colors.darkGray,
+    fontWeight: 'bold',
+    letterSpacing: 0.5,
+  },
+  emptyContainer: {
+    alignItems: 'center',
+    padding: theme.spacing.xl,
+  },
+  emptyText: {
+    fontSize: 16,
+    color: theme.colors.darkGray,
+    fontWeight: 'bold',
+    letterSpacing: 0.5,
   },
 }); 

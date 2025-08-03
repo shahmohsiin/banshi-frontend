@@ -2,7 +2,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React from 'react';
 import {
-    Alert,
     ScrollView,
     StyleSheet,
     Text,
@@ -20,7 +19,7 @@ interface Transaction {
 }
 
 const WalletScreen: React.FC = () => {
-  const [currentPoints] = React.useState(5); // This would come from your app state
+  const [currentPoints] = React.useState(5);
 
   const transactions: Transaction[] = [
     {
@@ -30,30 +29,25 @@ const WalletScreen: React.FC = () => {
       status: 'SUCCESSFUL',
       date: '2025-08-01 16:16:38',
     },
-    // Add more transactions as needed
   ];
 
   const getStatusColor = (status: Transaction['status']) => {
-    switch (status) {
-      case 'SUCCESSFUL':
-        return theme.colors.success;
-      case 'PENDING':
-        return theme.colors.secondary;
-      case 'FAILED':
-        return theme.colors.error;
-      default:
-        return theme.colors.darkGray;
-    }
+    if (status === 'SUCCESSFUL') return theme.colors.success;
+    if (status === 'PENDING') return theme.colors.secondary;
+    return theme.colors.error;
+  };
+
+  const goToAddFunds = () => router.push('/(app)/add-fund');
+  const goToWithdraw = () => router.push('/(app)/withdraw');
+  const goToPaymentMethods = () => {
+    // TODO: Navigate to payment method screen when implemented
   };
 
   return (
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity 
-          style={styles.backButton} 
-          onPress={() => router.back()}
-        >
+        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
           <Ionicons name="arrow-back" size={24} color={theme.colors.black} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Wallet</Text>
@@ -61,92 +55,97 @@ const WalletScreen: React.FC = () => {
       </View>
 
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-        {/* Wallet Points Display */}
-        <View style={styles.walletPointsContainer}>
-          <View style={styles.pointsSection}>
-            <View style={styles.pointsHeader}>
-              <View style={styles.pointsIconContainer}>
+        {/* Wallet Balance */}
+        <View style={styles.balanceSection}>
+          <View style={styles.balanceCard}>
+            <View style={styles.balanceHeader}>
+              <View style={styles.balanceIcon}>
                 <Ionicons name="diamond" size={32} color="#4FC3F7" />
-                <Text style={styles.pointsNumber}>{currentPoints}</Text>
+                <Text style={styles.balanceAmount}>{currentPoints}</Text>
               </View>
             </View>
             <View style={styles.divider} />
-            <Text style={styles.pointsLabel}>Wallet Points</Text>
+            <Text style={styles.balanceLabel}>Wallet Points</Text>
           </View>
-          <TouchableOpacity 
-            style={styles.addFundButton}
-            onPress={() => router.push('/(app)/add-fund')}
-          >
+          <TouchableOpacity style={styles.addFundButton} onPress={goToAddFunds}>
             <Ionicons name="add" size={20} color={theme.colors.white} />
             <Text style={styles.addFundText}>Add Fund</Text>
           </TouchableOpacity>
         </View>
 
-        {/* Action Buttons */}
-        <View style={styles.actionButtonsContainer}>
-          <TouchableOpacity 
-            style={styles.actionButton}
-            onPress={() => router.push('/(app)/withdraw')}
-          >
-            <View style={styles.actionButtonIcon}>
+        {/* Quick Actions */}
+        <View style={styles.actionsSection}>
+          <TouchableOpacity style={styles.actionButton} onPress={goToWithdraw}>
+            <View style={styles.actionIcon}>
               <Ionicons name="arrow-down" size={20} color={theme.colors.primary} />
             </View>
-            <Text style={styles.actionButtonText}>Withdraw</Text>
+            <Text style={styles.actionText}>Withdraw</Text>
           </TouchableOpacity>
           
-          <TouchableOpacity 
-            style={styles.actionButton}
-            onPress={() => {
-              // TODO: Navigate to payment method screen when implemented
-              Alert.alert('Payment Method', 'Payment method screen will be implemented next time');
-            }}
-          >
-            <View style={styles.actionButtonIcon}>
+          <TouchableOpacity style={styles.actionButton} onPress={goToPaymentMethods}>
+            <View style={styles.actionIcon}>
               <Ionicons name="card" size={20} color={theme.colors.primary} />
             </View>
-            <Text style={styles.actionButtonText}>Payment Method</Text>
+            <Text style={styles.actionText}>Payment Methods</Text>
           </TouchableOpacity>
         </View>
 
-        {/* Transaction Section */}
-        <View style={styles.transactionSection}>
-          <Text style={styles.transactionTitle}>Transaction</Text>
-          
-          {transactions.map((transaction) => (
-            <View key={transaction.id} style={styles.transactionItem}>
-              <View style={styles.transactionContent}>
-                <Text style={styles.transactionName}>{transaction.title}</Text>
-                <Text style={styles.transactionAmount}>{transaction.amount}</Text>
-                <Text style={styles.transactionDate}>{transaction.date}</Text>
+        {/* Transaction History */}
+        <View style={styles.historySection}>
+          <Text style={styles.sectionTitle}>Transaction History</Text>
+          <View style={styles.historyList}>
+            {transactions.length === 0 ? (
+              <View style={styles.emptyHistory}>
+                <Ionicons name="receipt-outline" size={48} color={theme.colors.darkGray} />
+                <Text style={styles.emptyText}>No transactions yet</Text>
+                <Text style={styles.emptySubtext}>Your transaction history will appear here</Text>
               </View>
-              <View style={styles.transactionStatus}>
-                <Text style={[
-                  styles.statusText,
-                  { color: getStatusColor(transaction.status) }
-                ]}>
-                  {transaction.status}
-                </Text>
-              </View>
-            </View>
-          ))}
-          
-          {transactions.length === 0 && (
-            <View style={styles.emptyState}>
-              <Ionicons name="receipt" size={48} color={theme.colors.lightGray} />
-              <Text style={styles.emptyStateText}>No transactions yet</Text>
-              <Text style={styles.emptyStateSubtext}>Your transaction history will appear here</Text>
-            </View>
-          )}
+            ) : (
+              transactions.map((transaction) => (
+                <View key={transaction.id} style={styles.transactionItem}>
+                  <View style={styles.transactionLeft}>
+                    <View style={styles.transactionIcon}>
+                      <Ionicons 
+                        name={transaction.status === 'SUCCESSFUL' ? 'checkmark-circle' : 'time'} 
+                        size={20} 
+                        color={getStatusColor(transaction.status)} 
+                      />
+                    </View>
+                    <View style={styles.transactionInfo}>
+                      <Text style={styles.transactionTitle}>{transaction.title}</Text>
+                      <Text style={styles.transactionDate}>{transaction.date}</Text>
+                    </View>
+                  </View>
+                  <View style={styles.transactionRight}>
+                    <Text style={[
+                      styles.transactionAmount,
+                      { color: getStatusColor(transaction.status) }
+                    ]}>
+                      +{transaction.amount}
+                    </Text>
+                    <Text style={[
+                      styles.transactionStatus,
+                      { color: getStatusColor(transaction.status) }
+                    ]}>
+                      {transaction.status}
+                    </Text>
+                  </View>
+                </View>
+              ))
+            )}
+          </View>
         </View>
       </ScrollView>
     </View>
   );
 };
 
+export default WalletScreen;
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: theme.colors.white,
+    backgroundColor: theme.colors.gray,
   },
   header: {
     flexDirection: 'row',
@@ -155,9 +154,8 @@ const styles = StyleSheet.create({
     paddingTop: theme.spacing.xl,
     paddingBottom: theme.spacing.lg,
     backgroundColor: theme.colors.white,
+    marginHorizontal: -theme.spacing.lg,
     paddingHorizontal: theme.spacing.lg,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.lightGray,
   },
   backButton: {
     padding: theme.spacing.xs,
@@ -174,121 +172,138 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: theme.spacing.lg,
   },
-  walletPointsContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+  balanceSection: {
     backgroundColor: theme.colors.white,
-    borderWidth: 2,
-    borderColor: theme.colors.primary,
     borderRadius: theme.borderRadius.lg,
     padding: theme.spacing.lg,
     marginTop: theme.spacing.lg,
+    flexDirection: 'row',
+    alignItems: 'center',
   },
-  pointsSection: {
+  balanceCard: {
     flex: 1,
   },
-  pointsHeader: {
+  balanceHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: theme.spacing.sm,
   },
-  pointsIconContainer: {
+  balanceIcon: {
     flexDirection: 'row',
     alignItems: 'center',
   },
-  pointsNumber: {
-    fontSize: 24,
+  balanceAmount: {
+    fontSize: 32,
     fontWeight: 'bold',
     color: theme.colors.black,
-    marginLeft: theme.spacing.sm,
+    marginLeft: theme.spacing.md,
   },
   divider: {
     height: 1,
     backgroundColor: theme.colors.lightGray,
     marginVertical: theme.spacing.sm,
   },
-  pointsLabel: {
+  balanceLabel: {
     fontSize: 16,
-    fontWeight: 'bold',
     color: theme.colors.black,
-    textAlign: 'center',
   },
   addFundButton: {
+    backgroundColor: theme.colors.primary,
+    paddingHorizontal: theme.spacing.lg,
+    paddingVertical: theme.spacing.md,
+    borderRadius: theme.borderRadius.md,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: theme.colors.primary,
-    borderRadius: theme.borderRadius.md,
-    paddingVertical: theme.spacing.sm,
-    paddingHorizontal: theme.spacing.md,
     marginLeft: theme.spacing.md,
   },
   addFundText: {
+    color: theme.colors.white,
     fontSize: 14,
     fontWeight: 'bold',
-    color: theme.colors.white,
     marginLeft: theme.spacing.xs,
   },
-  actionButtonsContainer: {
+  actionsSection: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginTop: theme.spacing.lg,
-    gap: theme.spacing.md,
   },
   actionButton: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: theme.colors.primary,
-    borderRadius: theme.borderRadius.md,
-    paddingVertical: theme.spacing.md,
-    paddingHorizontal: theme.spacing.lg,
-  },
-  actionButtonIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
     backgroundColor: theme.colors.white,
+    borderRadius: theme.borderRadius.md,
+    padding: theme.spacing.lg,
+    alignItems: 'center',
+    flex: 1,
+    marginHorizontal: theme.spacing.xs,
+  },
+  actionIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: theme.colors.gray,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: theme.spacing.sm,
+    marginBottom: theme.spacing.sm,
   },
-  actionButtonText: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: theme.colors.white,
+  actionText: {
+    fontSize: 14,
+    color: theme.colors.black,
+    fontWeight: '500',
   },
-  transactionSection: {
-    marginTop: theme.spacing.xl,
+  historySection: {
+    marginTop: theme.spacing.lg,
   },
-  transactionTitle: {
-    fontSize: 20,
+  sectionTitle: {
+    fontSize: 18,
     fontWeight: 'bold',
     color: theme.colors.black,
-    marginBottom: theme.spacing.lg,
+    marginBottom: theme.spacing.md,
+  },
+  historyList: {
+    backgroundColor: theme.colors.white,
+    borderRadius: theme.borderRadius.lg,
+    padding: theme.spacing.lg,
+  },
+  emptyHistory: {
+    alignItems: 'center',
+    paddingVertical: theme.spacing.xl,
+  },
+  emptyText: {
+    fontSize: 16,
+    color: theme.colors.darkGray,
+    marginTop: theme.spacing.md,
+  },
+  emptySubtext: {
+    fontSize: 14,
+    color: theme.colors.darkGray,
+    marginTop: theme.spacing.xs,
   },
   transactionItem: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: theme.colors.white,
-    borderWidth: 1,
-    borderColor: theme.colors.lightGray,
-    borderRadius: theme.borderRadius.md,
-    padding: theme.spacing.lg,
-    marginBottom: theme.spacing.md,
+    paddingVertical: theme.spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.lightGray,
   },
-  transactionContent: {
+  transactionLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
     flex: 1,
   },
-  transactionName: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: theme.colors.black,
-    marginBottom: theme.spacing.xs,
+  transactionIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: theme.colors.gray,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: theme.spacing.md,
   },
-  transactionAmount: {
-    fontSize: 18,
+  transactionInfo: {
+    flex: 1,
+  },
+  transactionTitle: {
+    fontSize: 16,
     fontWeight: 'bold',
     color: theme.colors.black,
     marginBottom: theme.spacing.xs,
@@ -297,29 +312,16 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: theme.colors.darkGray,
   },
-  transactionStatus: {
+  transactionRight: {
     alignItems: 'flex-end',
   },
-  statusText: {
-    fontSize: 14,
+  transactionAmount: {
+    fontSize: 16,
     fontWeight: 'bold',
+    marginBottom: theme.spacing.xs,
   },
-  emptyState: {
-    alignItems: 'center',
-    paddingVertical: theme.spacing.xl,
+  transactionStatus: {
+    fontSize: 12,
+    fontWeight: '500',
   },
-  emptyStateText: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: theme.colors.darkGray,
-    marginTop: theme.spacing.md,
-  },
-  emptyStateSubtext: {
-    fontSize: 14,
-    color: theme.colors.darkGray,
-    textAlign: 'center',
-    marginTop: theme.spacing.sm,
-  },
-});
-
-export default WalletScreen; 
+}); 

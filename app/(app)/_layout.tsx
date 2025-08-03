@@ -9,6 +9,7 @@ export default function AppLayout() {
       }}
     >
       <Stack.Screen name="index" />
+      <Stack.Screen name="games" />
       <Stack.Screen name="profile" />
       <Stack.Screen name="change-password" />
       <Stack.Screen name="contact-us" />
