@@ -8,6 +8,7 @@ import {
     TouchableOpacity,
     View,
 } from 'react-native';
+import { useUser } from '../contexts/UserContext';
 import { theme } from '../theme';
 
 interface Transaction {
@@ -19,7 +20,8 @@ interface Transaction {
 }
 
 const WalletScreen: React.FC = () => {
-  const [currentPoints] = React.useState(5);
+  const { userData } = useUser();
+  const currentPoints = userData?.walletBalance || 0;
 
   const transactions: Transaction[] = [
     {

@@ -1,24 +1,36 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
-    Alert,
-    SafeAreaView,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  Alert,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { Sidebar } from '../components/Sidebar';
+import { updateUserName } from '../config/api';
+import { useUser } from '../contexts/UserContext';
 import { theme } from '../theme';
 
 export default function ProfileScreen() {
   const [sidebarVisible, setSidebarVisible] = useState(false);
-  const [name, setName] = useState('Mohsin');
-  const [email] = useState('mohsin@example.com');
-  const [phone] = useState('7007688382');
+  const { userData, clearUserData, updateUserData } = useUser();
+  const [name, setName] = useState('');
+  const [isUpdating, setIsUpdating] = useState(false);
+
+  // Update name when userData changes
+  useEffect(() => {
+    if (userData?.name) {
+      setName(userData.name);
+    }
+  }, [userData]);
+
+  const email = userData?.email || '';
+  const phone = userData?.phone || '';
 
   const handleLogout = () => {
     Alert.alert(
@@ -32,17 +44,44 @@ export default function ProfileScreen() {
         {
           text: 'Logout',
           style: 'destructive',
-          onPress: () => {
+          onPress: async () => {
             // Clear user data and navigate to login
-            router.replace('/auth/login');
+            await clearUserData();
+            router.replace('/');
+            // Navigation will be handled automatically by the layout
+            console.log('Logout successful, user data cleared');
           },
         },
       ]
     );
   };
 
-  const handleEditProfile = () => {
-    Alert.alert('Edit Profile', 'Profile updated successfully!');
+  const handleEditProfile = async () => {
+    if (!userData?.userId) {
+      Alert.alert('Error', 'User ID not found. Please try logging in again.');
+      return;
+    }
+
+    if (!name.trim()) {
+      Alert.alert('Error', 'Please enter a valid name');
+      return;
+    }
+
+    setIsUpdating(true);
+    
+    try {
+      await updateUserName(userData.userId, name.trim());
+      
+      // Update local user data
+      updateUserData({ name: name.trim() });
+      
+      Alert.alert('Success', 'Profile updated successfully!');
+    } catch (error) {
+      console.error('Error updating profile:', error);
+      Alert.alert('Error', 'Failed to update profile. Please try again.');
+    } finally {
+      setIsUpdating(false);
+    }
   };
 
   return (
@@ -97,8 +136,14 @@ export default function ProfileScreen() {
         </View>
 
         {/* Edit Profile Button */}
-        <TouchableOpacity style={styles.editButton} onPress={handleEditProfile}>
-          <Text style={styles.editButtonText}>EDIT PROFILE</Text>
+        <TouchableOpacity 
+          style={[styles.editButton, isUpdating && styles.editButtonDisabled]} 
+          onPress={handleEditProfile}
+          disabled={isUpdating}
+        >
+          <Text style={styles.editButtonText}>
+            {isUpdating ? 'UPDATING...' : 'EDIT PROFILE'}
+          </Text>
         </TouchableOpacity>
       </ScrollView>
 
@@ -192,5 +237,8 @@ const styles = StyleSheet.create({
     color: theme.colors.black,
     fontSize: 18,
     fontWeight: 'bold',
+  },
+  editButtonDisabled: {
+    opacity: 0.7,
   },
 }); 

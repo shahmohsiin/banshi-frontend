@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { GameItem, fetchGamesFromApi } from '../services/gameApi';
+import { GameItem, fetchGamesFromApi } from '../config/api';
 
 export const useGame = () => {
   const [games, setGames] = useState<GameItem[]>([]);

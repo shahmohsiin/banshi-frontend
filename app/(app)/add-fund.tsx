@@ -2,21 +2,27 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React, { useState } from 'react';
 import {
-  Alert,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    ActivityIndicator,
+    Alert,
+    KeyboardAvoidingView,
+    Platform,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from 'react-native';
+import { useUser } from '../contexts/UserContext';
+import { usePayment } from '../hooks/usePayment';
 import { theme } from '../theme';
 
 const AddFundScreen: React.FC = () => {
   const [points, setPoints] = useState('');
-  const [currentPoints] = useState(5); // This would come from your app state
+  const [selectedMethod, setSelectedMethod] = useState('');
+  const { userData } = useUser();
+  const { processPayment, isLoading, error } = usePayment();
+  const currentPoints = userData?.walletBalance || 0;
 
   const pointOptions = [500, 1000, 2000, 3000, 5000, 10000];
 
@@ -24,15 +30,17 @@ const AddFundScreen: React.FC = () => {
     setPoints(selectedPoints.toString());
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!points || parseInt(points) < 300) {
       Alert.alert('Error', 'Minimum deposit is 300 points');
       return;
     }
 
+    const amount = parseInt(points);
+    
     Alert.alert(
       'Confirm Payment',
-      `You are about to add ${points} points to your account. Proceed with payment?`,
+      `You are about to add ${points} points to your account for ₹${amount}. Proceed with payment?`,
       [
         {
           text: 'Cancel',
@@ -40,9 +48,12 @@ const AddFundScreen: React.FC = () => {
         },
         {
           text: 'Proceed',
-          onPress: () => {
-            // Here you would integrate with your payment gateway
-            Alert.alert('Success', 'Payment initiated. Please complete the payment and refresh the app.');
+          onPress: async () => {
+            try {
+              await processPayment(amount);
+            } catch (error) {
+              console.error('Payment error:', error);
+            }
           },
         },
       ]
@@ -118,6 +129,7 @@ const AddFundScreen: React.FC = () => {
                   points === point.toString() && styles.selectedPointButton
                 ]}
                 onPress={() => handlePointSelection(point)}
+                disabled={isLoading}
               >
                 <Text style={[
                   styles.pointButtonText,
@@ -137,6 +149,7 @@ const AddFundScreen: React.FC = () => {
                   points === point.toString() && styles.selectedPointButton
                 ]}
                 onPress={() => handlePointSelection(point)}
+                disabled={isLoading}
               >
                 <Text style={[
                   styles.pointButtonText,
@@ -149,12 +162,27 @@ const AddFundScreen: React.FC = () => {
           </View>
         </View>
 
+        {/* Error Message */}
+        {error && (
+          <View style={styles.errorContainer}>
+            <Text style={styles.errorText}>{error}</Text>
+          </View>
+        )}
+
         {/* Submit Button */}
         <TouchableOpacity 
-          style={styles.submitButton}
+          style={[styles.submitButton, isLoading && styles.disabledButton]}
           onPress={handleSubmit}
+          disabled={isLoading}
         >
-          <Text style={styles.submitButtonText}>SUBMIT</Text>
+          {isLoading ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="small" color={theme.colors.white} />
+              <Text style={styles.submitButtonText}>Processing...</Text>
+            </View>
+          ) : (
+            <Text style={styles.submitButtonText}>SUBMIT</Text>
+          )}
         </TouchableOpacity>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -282,6 +310,17 @@ const styles = StyleSheet.create({
   selectedPointButtonText: {
     color: theme.colors.white,
   },
+  errorContainer: {
+    backgroundColor: '#FFEBEE',
+    padding: theme.spacing.md,
+    borderRadius: theme.borderRadius.md,
+    marginTop: theme.spacing.md,
+  },
+  errorText: {
+    color: '#D32F2F',
+    fontSize: 14,
+    textAlign: 'center',
+  },
   submitButton: {
     backgroundColor: theme.colors.primary,
     paddingVertical: theme.spacing.lg,
@@ -290,10 +329,19 @@ const styles = StyleSheet.create({
     marginBottom: theme.spacing.xl,
     alignItems: 'center',
   },
+  disabledButton: {
+    backgroundColor: theme.colors.darkGray,
+    opacity: 0.6,
+  },
+  loadingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
   submitButtonText: {
     fontSize: 18,
     fontWeight: 'bold',
     color: theme.colors.black,
+    marginLeft: theme.spacing.sm,
   },
 });
 

@@ -2,17 +2,17 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React, { useState } from 'react';
 import {
-    Alert,
-    KeyboardAvoidingView,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
-import { API_CONFIG, apiRequest } from '../config/api';
+import { signUp } from '../config/api';
 import { theme } from '../theme';
 
 interface SignUpData {
@@ -47,8 +47,19 @@ export default function SignUpScreen() {
       Alert.alert('Error', 'Please enter your phone number');
       return false;
     }
+    // Basic phone number validation
+    if (formData.phone.length < 10) {
+      Alert.alert('Error', 'Please enter a valid phone number (at least 10 digits)');
+      return false;
+    }
     if (!formData.email.trim()) {
       Alert.alert('Error', 'Please enter your email');
+      return false;
+    }
+    // Basic email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(formData.email)) {
+      Alert.alert('Error', 'Please enter a valid email address');
       return false;
     }
     if (!formData.password) {
@@ -72,25 +83,20 @@ export default function SignUpScreen() {
     setIsLoading(true);
     
     try {
-      const response = await apiRequest(API_CONFIG.ENDPOINTS.SIGNUP, {
-        method: 'POST',
-        body: JSON.stringify(formData),
-      });
+      const result = await signUp(formData);
 
-      const data = await response.json();
-
-      if (response.ok) {
-        Alert.alert('Success', 'Account created successfully!', [
+      if (result.success) {
+        Alert.alert('Success', result.message, [
           {
             text: 'OK',
             onPress: () => router.replace('/auth/login'),
           },
         ]);
       } else {
-        Alert.alert('Error', data.message || 'Sign up failed. Please try again.');
+        Alert.alert('Error', result.message);
       }
     } catch (error) {
-      console.error('Sign up error:', error);
+      console.error('Signup error:', error);
       Alert.alert('Error', 'Network error. Please check your connection and try again.');
     } finally {
       setIsLoading(false);
@@ -255,6 +261,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   appName: {
+    marginTop: theme.spacing.xl * 3,
     fontSize: 32,
     fontWeight: 'bold',
     color: theme.colors.primary,

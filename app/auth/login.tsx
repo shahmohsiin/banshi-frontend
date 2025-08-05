@@ -1,18 +1,21 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React, { useState } from 'react';
+
 import {
-    Alert,
-    KeyboardAvoidingView,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
-import { API_CONFIG, apiRequest } from '../config/api';
+
+import { signIn, getUserByPhone } from '../config/api';
+import { useUser } from '../contexts/UserContext';
 import { theme } from '../theme';
 
 interface LoginData {
@@ -27,6 +30,7 @@ export default function LoginScreen() {
   });
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const { setUserData } = useUser();
 
   const updateFormData = (field: keyof LoginData, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -35,6 +39,11 @@ export default function LoginScreen() {
   const validateForm = (): boolean => {
     if (!formData.phone.trim()) {
       Alert.alert('Error', 'Please enter your phone number');
+      return false;
+    }
+    // Basic phone number validation
+    if (formData.phone.length < 10) {
+      Alert.alert('Error', 'Please enter a valid phone number (at least 10 digits)');
       return false;
     }
     if (!formData.password) {
@@ -50,28 +59,29 @@ export default function LoginScreen() {
     setIsLoading(true);
     
     try {
-      const response = await apiRequest(API_CONFIG.ENDPOINTS.SIGNIN, {
-        method: 'POST',
-        body: JSON.stringify(formData),
-      });
+      const result = await signIn(formData);
 
-      const data = await response.json();
-
-      if (response.ok) {
-        // Store token if provided in response
-        if (data.token) {
-          // TODO: Store token securely (e.g., using AsyncStorage or SecureStore)
-          console.log('Token received:', data.token);
+      if (result.success) {
+        if (result.userData) {
+          await setUserData(result.userData);
+          router.replace('/');
+        } else {
+          // If no user data returned, try to fetch it separately
+          try {
+            const userData = await getUserByPhone(formData.phone);
+            await setUserData(userData);
+            router.replace('/');
+          } catch (userError) {
+            console.error('Error fetching user data after login:', userError);
+            Alert.alert(
+              'Warning', 
+              'Login successful but could not fetch user details. Please try again.',
+              [{ text: 'OK' }]
+            );
+          }
         }
-        
-        Alert.alert('Success', 'Login successful!', [
-          {
-            text: 'OK',
-            onPress: () => router.replace('/(app)'),
-          },
-        ]);
       } else {
-        Alert.alert('Error', data.message || 'Login failed. Please check your credentials.');
+        Alert.alert('Error', result.message);
       }
     } catch (error) {
       console.error('Login error:', error);
@@ -94,7 +104,10 @@ export default function LoginScreen() {
       style={styles.container} 
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-      <ScrollView contentContainerStyle={styles.scrollContainer}>
+      <ScrollView 
+        contentContainerStyle={styles.scrollContainer}
+        showsVerticalScrollIndicator={false}
+      >
         {/* Header */}
         <View style={styles.header}>
           <Text style={styles.appName}>BANSHI</Text>
@@ -180,17 +193,20 @@ const styles = StyleSheet.create({
   scrollContainer: {
     flexGrow: 1,
     paddingHorizontal: theme.spacing.lg,
+    justifyContent: 'center',
+    minHeight: '100%',
   },
   header: {
+    marginBottom:-100,
     alignItems: 'center',
-    marginTop: theme.spacing.xl * 2,
-    marginBottom: theme.spacing.xl,
+    marginTop: theme.spacing.xl * 3,
   },
   appName: {
+   
     fontSize: 32,
     fontWeight: 'bold',
     color: theme.colors.primary,
-    marginBottom: theme.spacing.sm,
+    marginBottom: theme.spacing.sm ,
   },
   subtitle: {
     fontSize: 18,
@@ -198,6 +214,7 @@ const styles = StyleSheet.create({
   },
   form: {
     flex: 1,
+    justifyContent: 'center',
   },
   inputContainer: {
     flexDirection: 'row',

@@ -12,6 +12,7 @@ import {
     TouchableOpacity,
     View,
 } from 'react-native';
+import { useUser } from '../contexts/UserContext';
 import { theme } from '../theme';
 
 type PaymentMethod = 'googlepay' | 'phonepe' | 'paytm' | 'bank';
@@ -27,7 +28,8 @@ interface PaymentMethodOption {
 const WithdrawScreen: React.FC = () => {
   const [points, setPoints] = useState('');
   const [selectedMethod, setSelectedMethod] = useState<PaymentMethod>('googlepay');
-  const [currentBalance] = useState(5); // This would come from your app state
+  const { userData } = useUser();
+  const currentBalance = userData?.walletBalance || 0;
 
   const paymentMethods: PaymentMethodOption[] = [
     {

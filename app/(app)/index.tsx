@@ -2,15 +2,19 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
-    SafeAreaView,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View
+  ActivityIndicator,
+  Alert,
+  RefreshControl,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View
 } from 'react-native';
 import { Sidebar } from '../components/Sidebar';
 import { StartupModal } from '../components/StartupModal';
+import { useUser } from '../contexts/UserContext';
 import { useGame } from '../hooks/useGame';
 import { GameItem } from '../services/gameApi';
 import { theme } from '../theme';
@@ -18,11 +22,43 @@ import { theme } from '../theme';
 export default function HomeScreen() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [showWelcomeModal, setShowWelcomeModal] = useState(true);
-  const { state, fetchGames } = useGame();
+  const [refreshing, setRefreshing] = useState(false);
+  const { state, fetchGames, clearError } = useGame();
+  const { userData, refreshUserData } = useUser();
+  const { isLoading } = useUser();
 
   useEffect(() => {
-    fetchGames();
+    loadGames();
+    console.log('userData', userData);
   }, []);
+
+  const loadGames = async () => {
+    try {
+      await fetchGames();
+    } catch (error) {
+      console.error('Error loading games:', error);
+    }
+  };
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    try {
+      await loadGames();
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!isLoading && !userData) {
+      router.replace('/auth/login');
+    }
+  }, [isLoading, userData]);
+
+  if (isLoading || !userData) {
+    // Optionally show a loading spinner or nothing while redirecting
+    return null;
+  }
 
   const handleMenuPress = () => setIsSidebarOpen(true);
   const handleCloseSidebar = () => setIsSidebarOpen(false);
@@ -33,11 +69,57 @@ export default function HomeScreen() {
   const goToAddFunds = () => router.push('/(app)/add-fund');
   const goToWithdraw = () => router.push('/(app)/withdraw');
 
+  const handlePlayGame = (game: GameItem) => {
+    console.log('handlePlayGame called with game:', game);
+    console.log('Game status:', game.status);
+    console.log('Game closeTime:', game.closeTime);
+    
+    // Only allow navigation if game is running
+    if (game.status !== 'running') {
+      Alert.alert('Game Closed', 'This game is currently closed and cannot be played.');
+      return;
+    }
+    
+    // Navigate to the new GameScreen, passing game name, openDate, closeDate
+    router.push({
+      pathname: '/(app)/game-screen',
+      params: {
+        gameName: game.name,
+        openTime: game.openDate.toISOString(),
+        closeTime: game.closeDate.toISOString(),
+      },
+    });
+  };
+
+  const handleViewChart = (game: GameItem) => {
+    Alert.alert('View Chart', `Opening chart for: ${game.name}`);
+  };
+
+  const handleContactWhatsApp = () => {
+    Alert.alert('Contact', 'WhatsApp contact: 8442017014');
+  };
+
+  const handleContactTelegram = () => {
+    Alert.alert('Contact', 'Telegram contact available');
+  };
+
+  // Debug function to test user data refresh
+  const testRefreshUserData = async () => {
+    if (userData?.phone) {
+      try {
+        await refreshUserData(userData.phone);
+        
+      } catch (error) {
+        console.error('Error refreshing user data:', error);
+      }
+    }
+  };
+
   const renderGameItem = (game: GameItem) => (
     <View key={game.id} style={styles.gameCard}>
       {/* Chart Button */}
       <View style={styles.gameLeft}>
-        <TouchableOpacity style={styles.chartButton}>
+        <TouchableOpacity style={styles.chartButton} onPress={() => handleViewChart(game)}>
           <View style={styles.chartIcon}>
             <Ionicons name="bar-chart" size={20} color={theme.colors.white} />
           </View>
@@ -68,6 +150,7 @@ export default function HomeScreen() {
             styles.playButton,
             { backgroundColor: game.status === 'running' ? theme.colors.green : theme.colors.darkGray }
           ]}
+          onPress={() => game.status === 'running' ? handlePlayGame(game) : null}
           disabled={game.status !== 'running'}
         >
           <Ionicons name="play" size={24} color={theme.colors.white} />
@@ -99,14 +182,20 @@ export default function HomeScreen() {
           <TouchableOpacity style={styles.notificationButton} onPress={goToNotifications}>
             <Ionicons name="notifications" size={24} color={theme.colors.white} />
           </TouchableOpacity>
+          {/* Wallet Button */}
           <TouchableOpacity style={styles.walletButton} onPress={goToWallet}>
             <Ionicons name="diamond" size={24} color="#4FC3F7" />
-            <Text style={styles.walletAmount}>5</Text>
+            <Text style={styles.walletAmount}>{userData?.walletBalance || 0}</Text>
           </TouchableOpacity>
         </View>
       </View>
 
-      <ScrollView style={styles.scrollView}>
+      <ScrollView 
+        style={styles.scrollView}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
+      >
         {/* App Title */}
         <View style={styles.appTitleSection}>
           <Text style={styles.appTitle}>BANSHI</Text>
@@ -134,11 +223,11 @@ export default function HomeScreen() {
         <View style={styles.socialSection}>
           <Text style={styles.sectionTitle}>Connect With Us</Text>
           <View style={styles.socialButtons}>
-            <TouchableOpacity style={[styles.socialButton, styles.whatsappButton]}>
+            <TouchableOpacity style={[styles.socialButton, styles.whatsappButton]} onPress={handleContactWhatsApp}>
               <Ionicons name="logo-whatsapp" size={24} color={theme.colors.white} />
               <Text style={styles.socialButtonText}>WhatsApp</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={[styles.socialButton, styles.telegramButton]}>
+            <TouchableOpacity style={[styles.socialButton, styles.telegramButton]} onPress={handleContactTelegram}>
               <Ionicons name="chatbubble" size={24} color={theme.colors.white} />
               <Text style={styles.socialButtonText}>Telegram</Text>
             </TouchableOpacity>
@@ -147,18 +236,29 @@ export default function HomeScreen() {
 
         {/* Games List */}
         <View style={styles.gamesSection}>
-          <View style={styles.gamesHeader}>
-            <Text style={styles.gamesTitle}>ALL GAMES</Text>
-            <Text style={styles.gamesSubtitle}>Choose your favorite game to play</Text>
-          </View>
+          {/* Error Message */}
+          {state.error && (
+            <View style={styles.errorContainer}>
+              <Text style={styles.errorText}>{state.error}</Text>
+              <TouchableOpacity style={styles.retryButton} onPress={clearError}>
+                <Ionicons name="refresh" size={16} color={theme.colors.red} />
+              </TouchableOpacity>
+            </View>
+          )}
+          
           <View style={styles.gamesList}>
             {state.loading ? (
               <View style={styles.loadingContainer}>
-                <Text style={styles.loadingText}>LOADING GAMES...</Text>
+                <ActivityIndicator size="large" color={theme.colors.primary} />
+                <Text style={styles.loadingText}>Loading games...</Text>
               </View>
             ) : state.games.length === 0 ? (
               <View style={styles.emptyContainer}>
-                <Text style={styles.emptyText}>NO GAMES AVAILABLE</Text>
+                <Ionicons name="game-controller-outline" size={64} color={theme.colors.darkGray} />
+                <Text style={styles.emptyText}>No games available</Text>
+                <TouchableOpacity style={styles.retryButton} onPress={loadGames}>
+                  <Text style={styles.retryButtonText}>Try Again</Text>
+                </TouchableOpacity>
               </View>
             ) : (
               state.games.map(renderGameItem)
@@ -301,7 +401,7 @@ const styles = StyleSheet.create({
   },
   gamesSection: {
     padding: theme.spacing.lg,
-    backgroundColor: theme.colors.gray,
+   
     marginHorizontal: -theme.spacing.lg,
     marginTop: theme.spacing.lg,
   },
@@ -445,5 +545,28 @@ const styles = StyleSheet.create({
     color: theme.colors.darkGray,
     fontWeight: 'bold',
     letterSpacing: 0.5,
+  },
+  errorContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: theme.spacing.md,
+    backgroundColor: theme.colors.lightGray,
+    borderRadius: theme.borderRadius.md,
+    marginBottom: theme.spacing.md,
+  },
+  errorText: {
+    color: theme.colors.red,
+    fontSize: 14,
+    fontWeight: 'bold',
+    flex: 1,
+  },
+  retryButton: {
+    padding: theme.spacing.xs,
+  },
+  retryButtonText: {
+    color: theme.colors.red,
+    fontSize: 14,
+    fontWeight: 'bold',
   },
 }); 

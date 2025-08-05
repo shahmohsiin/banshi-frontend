@@ -9,6 +9,7 @@ import {
     TouchableOpacity,
     View,
 } from 'react-native';
+import { useUser } from '../contexts/UserContext';
 import { theme } from '../theme';
 
 interface MenuItem {
@@ -26,7 +27,9 @@ interface SidebarProps {
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({ isVisible, onClose, activeRoute }) => {
-  const handleLogout = () => {
+  const { userData, clearUserData } = useUser();
+
+  const handleLogout = async () => {
     Alert.alert(
       'Logout',
       'Are you sure you want to logout?',
@@ -35,7 +38,12 @@ export const Sidebar: React.FC<SidebarProps> = ({ isVisible, onClose, activeRout
         { 
           text: 'Logout', 
           style: 'destructive', 
-          onPress: () => router.replace('/auth/login') 
+          onPress: async () => {
+            await clearUserData();
+            router.replace('/');
+            // Navigation will be handled automatically by the layout
+           
+          }
         },
       ]
     );
@@ -51,16 +59,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ isVisible, onClose, activeRout
         onClose();
       },
       isActive: activeRoute === 'home',
-    },
-    {
-      id: 'games',
-      title: 'Games',
-      icon: 'game-controller',
-      onPress: () => {
-        router.push('/(app)/games');
-        onClose();
-      },
-      isActive: activeRoute === 'games',
     },
     {
       id: 'profile',
@@ -183,8 +181,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ isVisible, onClose, activeRout
               <Ionicons name="person" size={30} color={theme.colors.white} />
             </View>
             <View style={styles.userDetails}>
-              <Text style={styles.userName}>Mohsin</Text>
-              <Text style={styles.userPhone}>7007688382</Text>
+              <Text style={styles.userName}>{userData?.name || 'User'}</Text>
+              <Text style={styles.userPhone}>{userData?.phone || 'No phone'}</Text>
             </View>
           </View>
           <TouchableOpacity style={styles.closeButton} onPress={onClose}>
@@ -218,9 +216,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isVisible, onClose, activeRout
         </ScrollView>
 
         {/* Footer */}
-        <View style={styles.footer}>
-          
-        </View>
+        
       </View>
     </View>
   );
@@ -300,6 +296,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: theme.spacing.lg,
     paddingVertical: theme.spacing.md,
+    
   },
   activeMenuItem: {
     backgroundColor: 'rgba(255, 107, 53, 0.1)',
@@ -315,10 +312,5 @@ const styles = StyleSheet.create({
     color: theme.colors.primary,
     fontWeight: 'bold',
   },
-  footer: {
-    paddingHorizontal: theme.spacing.lg,
-    paddingVertical: theme.spacing.lg,
-    borderTopWidth: 1,
-    borderTopColor: theme.colors.lightGray,
-  },
+
 }); 
