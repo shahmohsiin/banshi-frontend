@@ -1,65 +1,119 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useState } from 'react';
+import useTodayString from '../hooks/date';
 import {
     Alert,
     SafeAreaView,
     StyleSheet,
     Text,
-    TextInput,
     TouchableOpacity,
     View
 } from 'react-native';
 import { useUser } from '../contexts/UserContext';
 import { theme } from '../theme';
+import { placeBid } from '../config/api';
+import SuggestiveInput from '../components/SuggestiveInput';
+
 
 export default function FullSangamScreen() {
-  const { gameName } = useLocalSearchParams();
-  const { userData } = useUser();
+  const { gameName, gameId } = useLocalSearchParams();
+  const { userData, refreshUserData } = useUser();
   const [openPanna, setOpenPanna] = useState('');
   const [closePanna, setClosePanna] = useState('');
   const [amount, setAmount] = useState('');
-  const [selectedStatus, setSelectedStatus] = useState<'OPEN' | 'CLOSE'>('OPEN');
+  const [isLoading, setIsLoading] = useState(false);
+
+  const currentBalance = userData?.walletBalance || 0;
+  const hasBalance = currentBalance > 0;
 
   const handleBack = () => {
     router.back();
   };
 
-  const handleAddBid = () => {
+
+
+  const handleAddBid = async () => {
+    // Validate open panna
     if (!openPanna.trim()) {
       Alert.alert('Error', 'Please enter an open panna');
       return;
     }
+
+
+    // Validate close panna
     if (!closePanna.trim()) {
       Alert.alert('Error', 'Please enter a close panna');
       return;
     }
+
+    
+
+    // Validate amount
     if (!amount.trim()) {
       Alert.alert('Error', 'Please enter an amount');
       return;
     }
-    if (openPanna.length !== 3) {
-      Alert.alert('Error', 'Please enter exactly 3 digits for open panna');
+
+    const amountValue = parseInt(amount);
+    if (isNaN(amountValue) || amountValue <= 0) {
+      Alert.alert('Error', 'Please enter a valid amount');
       return;
     }
-    if (closePanna.length !== 3) {
-      Alert.alert('Error', 'Please enter exactly 3 digits for close panna');
+
+    // Check balance
+    if (amountValue > currentBalance) {
+      Alert.alert('Error', 'Insufficient balance');
       return;
     }
-    if (parseInt(openPanna) < 0 || parseInt(openPanna) > 999) {
-      Alert.alert('Error', 'Please enter a valid open panna (000-999)');
-      return;
-    }
-    if (parseInt(closePanna) < 0 || parseInt(closePanna) > 999) {
-      Alert.alert('Error', 'Please enter a valid close panna (000-999)');
-      return;
-    }
+
+    // Format: openPanna + "-" + closePanna
+    const number = `${openPanna}-${closePanna}`;
     
-    Alert.alert('Success', `Full Sangam bid added: Open ${openPanna}, Close ${closePanna} for ${amount}`);
+    await placeBidRequest(number, amountValue);
   };
 
-  const handleStatusSelect = (status: 'OPEN' | 'CLOSE') => {
-    setSelectedStatus(status);
+  const placeBidRequest = async (number: string, amountValue: number) => {
+    if (!userData?.userId) {
+      Alert.alert('Error', 'User data not found');
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const requestBody = {
+        userId: userData.userId,
+        gameId: parseInt(gameId as string) || 1,
+        bidType: 'FULL_SANGAM',
+        bidTiming:null,
+        number: number,
+        amount: amountValue
+      };
+
+      console.log('Placing bid with data:', requestBody);
+      const result = await placeBid(requestBody);
+      console.log('API Response:', result);
+
+      if (result.success) {
+        Alert.alert('Success', 'Bid placed successfully!');
+        // Reset form
+        setOpenPanna('');
+        setClosePanna('');
+        setAmount('');
+        // Refresh user data to update balance
+        if (userData?.phone) {
+          await refreshUserData(userData.phone);
+        }
+      } else {
+        console.log('API Error:', result);
+        Alert.alert('Error', result.message || 'Failed to place bid');
+      }
+    } catch (error) {
+      console.error('Bid placement error:', error);
+      Alert.alert('Error', 'Network error. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -83,78 +137,61 @@ export default function FullSangamScreen() {
         <Text style={styles.balanceLabel}>Balance</Text>
       </View>
 
-      {/* Date and Status Section */}
+      {/* Date Section */}
       <View style={styles.dateCard}>
-        <Text style={styles.dateText}>Mon-04-August-2025</Text>
-        <View style={styles.statusButtons}>
-          <TouchableOpacity 
-            style={[
-              styles.statusButton, 
-              selectedStatus === 'OPEN' && styles.selectedStatusButton
-            ]}
-            onPress={() => handleStatusSelect('OPEN')}
-          >
-            <Text style={[
-              styles.statusButtonText,
-              selectedStatus === 'OPEN' && styles.selectedStatusButtonText
-            ]}>OPEN</Text>
-          </TouchableOpacity>
-          <TouchableOpacity 
-            style={[
-              styles.statusButton, 
-              selectedStatus === 'CLOSE' && styles.selectedStatusButton
-            ]}
-            onPress={() => handleStatusSelect('CLOSE')}
-          >
-            <Text style={[
-              styles.statusButtonText,
-              selectedStatus === 'CLOSE' && styles.selectedStatusButtonText
-            ]}>CLOSE</Text>
-          </TouchableOpacity>
-        </View>
+        <Text style={styles.dateText}>{useTodayString()}</Text>
       </View>
 
       {/* Input Fields */}
       <View style={styles.inputSection}>
         <View style={styles.inputContainer}>
-          <TextInput
-            style={styles.input}
-            placeholder="Enter Open Panna"
+          <SuggestiveInput
             value={openPanna}
             onChangeText={setOpenPanna}
+            placeholder="Enter Open Panna"
+            placeholderTextColor={"black"}
             keyboardType="numeric"
             maxLength={3}
+            gameType="SINGLE_PANNA"
+            style={styles.input}
           />
-          <View style={styles.inputLine} />
         </View>
 
         <View style={styles.inputContainer}>
-          <TextInput
-            style={styles.input}
-            placeholder="Enter Close Panna"
+          <SuggestiveInput
             value={closePanna}
             onChangeText={setClosePanna}
+            placeholder="Enter Close Panna"
+            placeholderTextColor={"black"}
             keyboardType="numeric"
             maxLength={3}
+            gameType="SINGLE_PANNA"
+            style={styles.input}
           />
-          <View style={styles.inputLine} />
         </View>
 
         <View style={styles.inputContainer}>
-          <TextInput
-            style={styles.input}
-            placeholder="Enter Amount"
+          <SuggestiveInput
             value={amount}
             onChangeText={setAmount}
+            placeholder="Enter Amount"
+            placeholderTextColor={"black"}
             keyboardType="numeric"
+            gameType="AMOUNT"
+            style={styles.input}
           />
-          <View style={styles.inputLine} />
         </View>
       </View>
 
       {/* Add Bid Button */}
-      <TouchableOpacity style={styles.addBidButton} onPress={handleAddBid}>
-        <Text style={styles.addBidText}>ADD BID</Text>
+      <TouchableOpacity 
+        style={[styles.addBidButton, !hasBalance && styles.disabledButton]} 
+        onPress={handleAddBid}
+        disabled={isLoading || !hasBalance}
+      >
+        <Text style={styles.addBidText}>
+          {isLoading ? 'PLACING BID...' : 'ADD BID'}
+        </Text>
       </TouchableOpacity>
     </SafeAreaView>
   );
@@ -226,38 +263,12 @@ const styles = StyleSheet.create({
     borderColor: theme.colors.black,
     borderRadius: theme.borderRadius.lg,
     backgroundColor: theme.colors.white,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
   },
   dateText: {
     fontSize: 16,
     fontWeight: 'bold',
     color: theme.colors.black,
-  },
-  statusButtons: {
-    flexDirection: 'row',
-    gap: theme.spacing.sm,
-  },
-  statusButton: {
-    backgroundColor: theme.colors.white,
-    paddingHorizontal: theme.spacing.md,
-    paddingVertical: theme.spacing.sm,
-    borderRadius: theme.borderRadius.sm,
-    borderWidth: 1,
-    borderColor: theme.colors.black,
-  },
-  selectedStatusButton: {
-    backgroundColor: theme.colors.primary,
-    borderColor: theme.colors.primary,
-  },
-  statusButtonText: {
-    color: theme.colors.black,
-    fontSize: 12,
-    fontWeight: 'bold',
-  },
-  selectedStatusButtonText: {
-    color: theme.colors.white,
+    textAlign: 'center',
   },
   inputSection: {
     flex: 1,
@@ -285,6 +296,9 @@ const styles = StyleSheet.create({
     paddingVertical: theme.spacing.lg,
     borderRadius: theme.borderRadius.lg,
     alignItems: 'center',
+  },
+  disabledButton: {
+    backgroundColor: theme.colors.lightGray,
   },
   addBidText: {
     color: theme.colors.white,

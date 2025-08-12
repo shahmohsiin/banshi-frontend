@@ -16,7 +16,7 @@ import {
 
 import { signIn, getUserByPhone } from '../config/api';
 import { useUser } from '../contexts/UserContext';
-import { theme } from '../theme';
+import { useTheme } from '../contexts/ThemeContext';
 
 interface LoginData {
   phone: string;
@@ -31,6 +31,7 @@ export default function LoginScreen() {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const { setUserData } = useUser();
+  const { theme } = useTheme();
 
   const updateFormData = (field: keyof LoginData, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -63,12 +64,15 @@ export default function LoginScreen() {
 
       if (result.success) {
         if (result.userData) {
+          console.log('Setting user data from login response:', result.userData);
           await setUserData(result.userData);
           router.replace('/');
         } else {
           // If no user data returned, try to fetch it separately
           try {
+            console.log('Fetching user data separately after login...');
             const userData = await getUserByPhone(formData.phone);
+            console.log('Fetched user data:', userData);
             await setUserData(userData);
             router.replace('/');
           } catch (userError) {
@@ -101,27 +105,28 @@ export default function LoginScreen() {
 
   return (
     <KeyboardAvoidingView 
-      style={styles.container} 
+      style={[styles.container, { backgroundColor: theme.colors.background }]} 
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <ScrollView 
-        contentContainerStyle={styles.scrollContainer}
+        contentContainerStyle={[styles.scrollContainer, { minHeight: '100%' }]}
         showsVerticalScrollIndicator={false}
       >
         {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.appName}>BANSHI</Text>
-          <Text style={styles.subtitle}>Welcome back!</Text>
+          <Text style={[styles.appName, { color: theme.colors.primary }]}>BANSHI</Text>
+          <Text style={[styles.subtitle, { color: theme.colors.textSecondary }]}>Welcome back!</Text>
         </View>
 
         {/* Form */}
         <View style={styles.form}>
           {/* Phone Input */}
-          <View style={styles.inputContainer}>
-            <Ionicons name="call" size={20} color={theme.colors.darkGray} style={styles.inputIcon} />
+          <View style={[styles.inputContainer, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}> 
+            <Ionicons name="call" size={20} color={theme.colors.textSecondary} style={styles.inputIcon} />
             <TextInput
-              style={styles.input}
+              style={[styles.input, { color: theme.colors.text }]}
               placeholder="Phone Number"
+              placeholderTextColor={theme.colors.textTertiary}
               value={formData.phone}
               onChangeText={(value) => updateFormData('phone', value)}
               keyboardType="phone-pad"
@@ -129,11 +134,12 @@ export default function LoginScreen() {
           </View>
 
           {/* Password Input */}
-          <View style={styles.inputContainer}>
-            <Ionicons name="lock-closed" size={20} color={theme.colors.darkGray} style={styles.inputIcon} />
+          <View style={[styles.inputContainer, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}> 
+            <Ionicons name="lock-closed" size={20} color={theme.colors.textSecondary} style={styles.inputIcon} />
             <TextInput
-              style={styles.input}
+              style={[styles.input, { color: theme.colors.text }]}
               placeholder="Password"
+              placeholderTextColor={theme.colors.textTertiary}
               value={formData.password}
               onChangeText={(value) => updateFormData('password', value)}
               secureTextEntry={!showPassword}
@@ -145,38 +151,38 @@ export default function LoginScreen() {
               <Ionicons 
                 name={showPassword ? "eye-off" : "eye"} 
                 size={20} 
-                color={theme.colors.darkGray} 
+                color={theme.colors.textSecondary} 
               />
             </TouchableOpacity>
           </View>
 
           {/* Forgot Password */}
           <TouchableOpacity style={styles.forgotPassword} onPress={handleForgotPassword}>
-            <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
+            <Text style={[styles.forgotPasswordText, { color: theme.colors.primary }]}>Forgot Password?</Text>
           </TouchableOpacity>
 
           {/* Login Button */}
           <TouchableOpacity 
-            style={[styles.loginButton, isLoading && styles.loginButtonDisabled]}
+            style={[styles.loginButton, { backgroundColor: theme.colors.primary, borderRadius: theme.borderRadius.md }, isLoading && styles.loginButtonDisabled]}
             onPress={handleLogin}
             disabled={isLoading}
           >
-            <Text style={styles.loginButtonText}>
+            <Text style={[styles.loginButtonText, { color: theme.colors.white }]}> 
               {isLoading ? 'Loading...' : 'Login'}
             </Text>
           </TouchableOpacity>
 
           {/* Divider */}
           <View style={styles.divider}>
-            <View style={styles.dividerLine} />
-            <Text style={styles.dividerText}>OR</Text>
-            <View style={styles.dividerLine} />
+            <View style={[styles.dividerLine, { backgroundColor: theme.colors.border }]} />
+            <Text style={[styles.dividerText, { color: theme.colors.textSecondary }]}>OR</Text>
+            <View style={[styles.dividerLine, { backgroundColor: theme.colors.border }]} />
           </View>
 
           {/* Sign Up Link */}
           <TouchableOpacity style={styles.signUpButton} onPress={handleSignUp}>
-            <Text style={styles.signUpText}>
-              Don't have an account? <Text style={styles.signUpLink}>Sign Up</Text>
+            <Text style={[styles.signUpText, { color: theme.colors.textSecondary }]}> 
+              Don't have an account? <Text style={[styles.signUpLink, { color: theme.colors.primary }]}>Sign Up</Text>
             </Text>
           </TouchableOpacity>
         </View>
@@ -188,29 +194,24 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: theme.colors.white,
   },
   scrollContainer: {
     flexGrow: 1,
-    paddingHorizontal: theme.spacing.lg,
+    paddingHorizontal: 24,
     justifyContent: 'center',
-    minHeight: '100%',
   },
   header: {
-    marginBottom:-100,
+    marginBottom: -100,
     alignItems: 'center',
-    marginTop: theme.spacing.xl * 3,
+    marginTop: 96,
   },
   appName: {
-   
     fontSize: 32,
     fontWeight: 'bold',
-    color: theme.colors.primary,
-    marginBottom: theme.spacing.sm ,
+    marginBottom: 8,
   },
   subtitle: {
     fontSize: 18,
-    color: theme.colors.darkGray,
   },
   form: {
     flex: 1,
@@ -219,70 +220,61 @@ const styles = StyleSheet.create({
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: theme.colors.gray,
-    borderRadius: theme.borderRadius.md,
-    marginBottom: theme.spacing.md,
-    paddingHorizontal: theme.spacing.md,
+    borderRadius: 12,
+    marginBottom: 16,
+    paddingHorizontal: 16,
     height: 50,
+    borderWidth: 1,
   },
   inputIcon: {
-    marginRight: theme.spacing.sm,
+    marginRight: 8,
   },
   input: {
     flex: 1,
     fontSize: 16,
-    color: theme.colors.black,
   },
   eyeIcon: {
-    padding: theme.spacing.xs,
+    padding: 4,
   },
   forgotPassword: {
     alignSelf: 'flex-end',
-    marginBottom: theme.spacing.lg,
+    marginBottom: 24,
   },
   forgotPasswordText: {
-    color: theme.colors.primary,
     fontSize: 14,
   },
   loginButton: {
-    backgroundColor: theme.colors.primary,
-    borderRadius: theme.borderRadius.md,
-    paddingVertical: theme.spacing.md,
+    paddingVertical: 16,
     alignItems: 'center',
-    marginBottom: theme.spacing.lg,
+    marginBottom: 24,
   },
   loginButtonDisabled: {
     opacity: 0.6,
   },
   loginButtonText: {
-    color: theme.colors.white,
     fontSize: 18,
     fontWeight: 'bold',
   },
   divider: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginVertical: theme.spacing.lg,
+    marginVertical: 24,
   },
   dividerLine: {
     flex: 1,
     height: 1,
-    backgroundColor: theme.colors.lightGray,
   },
   dividerText: {
-    marginHorizontal: theme.spacing.md,
-    color: theme.colors.darkGray,
+    marginHorizontal: 16,
     fontSize: 14,
   },
   signUpButton: {
     alignItems: 'center',
   },
   signUpText: {
-    color: theme.colors.darkGray,
     fontSize: 16,
   },
   signUpLink: {
-    color: theme.colors.primary,
     fontWeight: 'bold',
   },
 }); 

@@ -2,7 +2,7 @@
 
 // ==================== BASE CONFIGURATION ====================
 export const API_CONFIG = {
-  BASE_URL: "https://71761c8318d5.ngrok-free.app",
+  BASE_URL: "",
   TIMEOUT: 10000,
 };
 
@@ -11,14 +11,14 @@ export interface UserData {
   name: string;
   phone: string;
   walletBalance: number;
-  email: string;
+  
   userId: number;
 }
 
 export interface SignUpData {
   name: string;
   phone: string;
-  email: string;
+  
   password: string;
 }
 
@@ -35,7 +35,7 @@ export interface GameItem {
   closeTime: string;
   openDate: Date;
   closeDate: Date;
-  status: 'running' | 'closed' | 'upcoming';
+  status: 'running' | 'closed';
 }
 
 export interface PaymentOptions {
@@ -46,7 +46,7 @@ export interface PaymentOptions {
   description: string;
   order_id: string;
   prefill: {
-    email: string;
+   
     contact: string;
     name: string;
   };
@@ -94,11 +94,19 @@ export const ENDPOINTS = {
     VERIFY_PAYMENT: '/api/payment/verify',
     UPDATE_WALLET: '/api/payment/update-wallet',
     WITHDRAW: '/api/payment/withdraw',
+    FUND_HISTORY: (userId: number) => `/api/fund-history/user/${userId}`,
+  },
+  
+  // Withdrawals
+  WITHDRAWALS: {
+    WITHDRAW: '/api/withdrawals/withdraw',
   },
   
   // Game Bids
   BIDS: {
+    HISTORY: (userId: number) => `/api/bids/history/user/${userId}`,
     CREATE: '/api/bids/create',
+    PLACE: '/api/bids/place',
     GET_USER_BIDS: (userId: number) => `/api/bids/user/${userId}`,
     GET_GAME_BIDS: (gameId: number) => `/api/bids/game/${gameId}`,
   },
@@ -144,7 +152,7 @@ export const signUp = async (data: SignUpData): Promise<{ success: boolean; mess
           name: responseData.response.name,
           phone: responseData.response.phone,
           walletBalance: responseData.response.balance || 0,
-          email: responseData.response.email,
+        
           userId: responseData.response.userId
         };
         console.log('Signup successful, user data:', userData);
@@ -186,7 +194,7 @@ export const signIn = async (data: SignInData): Promise<{ success: boolean; mess
           name: responseData.response.name,
           phone: responseData.response.phone,
           walletBalance: responseData.response.balance || 0,
-          email: responseData.response.email,
+        
           userId: responseData.response.userId
         };
         console.log('Signin successful, user data:', userData);
@@ -226,7 +234,7 @@ export const getUserByPhone = async (phone: string): Promise<UserData> => {
         name: data.response.name,
         phone: data.response.phone,
         walletBalance: data.response.balance || 0,
-        email: data.response.email,
+
         userId: data.response.userId
       };
       console.log('User data fetched successfully:', userData.name);
@@ -275,7 +283,7 @@ export const fetchGamesFromApi = async (): Promise<GameItem[]> => {
     const data = await response.json();
     
     if (data.status !== 'SUCCESS') {
-      throw new Error('Failed to fetch games');
+     
     }
     
     return data.response.map((game: any) => {
@@ -283,11 +291,25 @@ export const fetchGamesFromApi = async (): Promise<GameItem[]> => {
       const openingTime = new Date(game.openingTime);
       const closingTime = new Date(game.closingTime);
       
-      // Determine status based on actual time
-      let status: 'running' | 'closed' | 'upcoming';
-      if (now < openingTime) {
-        status = 'upcoming';
-      } else if (now >= openingTime && now <= closingTime) {
+      // Debug logging for all games to see gameIds
+      console.log(`Game Debug - ${game.name}:`, {
+        gameName: game.name,
+        gameId: game.gameId,
+        openingTime: game.openingTime,
+        closingTime: game.closingTime,
+        parsedOpeningTime: openingTime.toISOString(),
+        parsedClosingTime: closingTime.toISOString(),
+        now: now.toISOString(),
+        isOpeningValid: !isNaN(openingTime.getTime()),
+        isClosingValid: !isNaN(closingTime.getTime()),
+        isNowBeforeOpening: now < openingTime,
+        isNowAfterClosing: now > closingTime,
+        isNowBetween: now >= openingTime && now <= closingTime
+      });
+      
+      // Determine status based on actual time - only running or closed
+      let status: 'running' | 'closed';
+      if (now <= closingTime) {
         status = 'running';
       } else {
         status = 'closed';
@@ -308,7 +330,7 @@ export const fetchGamesFromApi = async (): Promise<GameItem[]> => {
       };
     });
   } catch (error) {
-    console.error('Error fetching games:', error);
+    
     throw error;
   }
 };
@@ -324,7 +346,7 @@ const formatTime = (date: Date): string => {
 const getGameNumbers = (game: any, now: Date, openingTime: Date, closingTime: Date): string => {
   // If opening time hasn't passed, show *****
   if (now < openingTime) {
-    return '********';
+    return '***-**-***';
   }
   
   // If opening time passed but closing time hasn't
@@ -332,9 +354,9 @@ const getGameNumbers = (game: any, now: Date, openingTime: Date, closingTime: Da
     if (game.openResult) {
       const openSum = game.openResult.split('').reduce((sum: number, digit: string) => sum + parseInt(digit), 0);
       const lastDigit = openSum % 10;
-      return `${game.openResult}-${lastDigit}*-****`;
+      return `${game.openResult}-${lastDigit}*-***`;
     }
-    return '********';
+    return '***-**-***';
   }
   
   // If closing time has passed
@@ -346,78 +368,110 @@ const getGameNumbers = (game: any, now: Date, openingTime: Date, closingTime: Da
       const closeLastDigit = closeSum % 10;
       return `${game.openResult}-${openLastDigit}${closeLastDigit}-${game.closeResult}`;
     }
-    return '********';
+    return '***-**-***';
   }
   
-  return '********';
+  return '***-**-***';
 };
 
 // ==================== PAYMENT API FUNCTIONS ====================
-export const createOrder = async (amount: number): Promise<string> => {
+export const createOrder = async (userId: number, amount: number): Promise<any> => {
   try {
-    const response = await apiRequest(ENDPOINTS.PAYMENT.CREATE_ORDER, {
+    console.log('Creating order for userId:', userId, 'amount:', amount);
+    const endpoint = `/api/payments/create-order`;
+    const response = await apiRequest(endpoint, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        amount: amount * 100, // Convert to paise
-        currency: 'INR',
+        userId: userId,
+        amount: amount,
       }),
     });
 
+    console.log('Order creation response status:', response.status);
+    
+    if (!response.ok) {
+      console.error('Order creation failed with status:', response.status);
+      const errorText = await response.text();
+      console.error('Order creation error response:', errorText);
+      throw new Error(`Order creation failed: ${response.status}`);
+    }
+
     const result = await response.json();
-    return result.order_id;
+    console.log('Order creation result:', result);
+    return result; // Should include order_id, amount, etc.
   } catch (error) {
     console.error('Order creation failed:', error);
-    // For development, return a mock order ID
-    if (__DEV__) {
-      return `order_${Date.now()}`;
-    }
     throw new Error('Failed to create order');
   }
 };
 
 export const verifyPayment = async (
-  paymentId: string,
-  orderId: string,
-  signature: string
+  userId: number,
+  razorpayOrderId: string,
+  razorpayPaymentId: string,
+  razorpaySignature: string,
+  amount: number
 ): Promise<boolean> => {
   try {
-    const response = await apiRequest(ENDPOINTS.PAYMENT.VERIFY_PAYMENT, {
+    console.log("Verifying payment with data:", {
+      userId,
+      razorpayOrderId,
+      razorpayPaymentId,
+      razorpaySignature,
+      amount
+    });
+    
+    const response = await apiRequest('/api/payments/verify', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        payment_id: paymentId,
-        order_id: orderId,
-        signature: signature,
+        userId,
+        razorpayOrderId,
+        razorpayPaymentId,
+        razorpaySignature,
+        amount
       }),
     });
-
+    
+    console.log('Payment verification response status:', response.status);
+    
+    if (!response.ok) {
+      console.error('Payment verification failed with status:', response.status);
+      const errorText = await response.text();
+      console.error('Payment verification error response:', errorText);
+      return false;
+    }
+    
     const result = await response.json();
-    return result.verified;
+    console.log('Payment verification result:', result);
+    
+    const isVerified = result.response
+    console.log('Payment verification final result:', isVerified);
+    
+    return Boolean(isVerified);
   } catch (error) {
-    console.error('Payment verification failed:', error);
-    // For development, return true to allow testing
-    return __DEV__ ? true : false;
+    console.error('Payment verification failed with exception:', error);
+    return false;
   }
 };
 
 export const updateWalletBalance = async (userId: string, amount: number): Promise<boolean> => {
   try {
-    const response = await apiRequest(ENDPOINTS.PAYMENT.UPDATE_WALLET, {
+    const response = await apiRequest('/api/payments/update-wallet', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        user_id: userId,
+        userId: userId,
         amount: amount,
       }),
     });
-
     const result = await response.json();
     return result.success;
   } catch (error) {
@@ -448,6 +502,35 @@ export const withdrawFunds = async (userId: string, amount: number, bankDetails:
   }
 };
 
+// New withdrawal API for UPI-based withdrawals
+export const requestWithdrawal = async (
+  userId: number,
+  amount: number,
+  upiId: string
+): Promise<{ success: boolean; message: string }> => {
+  try {
+    const response = await apiRequest(ENDPOINTS.WITHDRAWALS.WITHDRAW, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        userId,
+        amount,
+        upiId,
+      }),
+    });
+
+    const data = await response.json();
+    const success = data.status === 'success' || data.success === true;
+    const message = data.message || (success ? ` Your Withdrawal request for ${amount} is  submitted `: 'Failed to request withdrawal');
+    return { success, message };
+  } catch (error) {
+    console.error('Request withdrawal failed:', error);
+    return { success: false, message: 'Network error. Please try again.' };
+  }
+};
+
 // ==================== BIDS API FUNCTIONS ====================
 export const createBid = async (bidData: any): Promise<boolean> => {
   try {
@@ -464,6 +547,33 @@ export const createBid = async (bidData: any): Promise<boolean> => {
   } catch (error) {
     console.error('Bid creation failed:', error);
     return false;
+  }
+};
+
+export const placeBid = async (bidData: any): Promise<{ success: boolean; message: string }> => {
+  try {
+    console.log('Placing bid with data:', bidData);
+    const response = await apiRequest(ENDPOINTS.BIDS.PLACE, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(bidData),
+    });
+
+    const result = await response.json();
+    console.log('Bid placement API response:', result);
+    
+    return {
+      success: response.ok && result.status === 'SUCCESS',
+      message: result.message || 'Bid placed successfully'
+    };
+  } catch (error) {
+    console.error('Bid placement failed:', error);
+    return { 
+      success: false, 
+      message: 'Network error. Please try again.' 
+    };
   }
 };
 
@@ -491,6 +601,94 @@ export const getGameBids = async (gameId: number): Promise<any[]> => {
     return data.response || [];
   } catch (error) {
     console.error('Error fetching game bids:', error);
+    return [];
+  }
+}; 
+
+// ==================== HISTORY API FUNCTIONS ====================
+
+export interface TransactionHistory {
+  id: number;
+  type: 'credit' | 'debit';
+  amount: number;
+  description: string;
+  status: string
+  transactionTime:string
+}
+
+export interface GameBidHistory {
+  id: number;
+  bidType: string;
+  bidNumber: string;
+  bidTiming: string;
+  resultStatus: 'active' | 'won' | 'lost' | 'cancelled';
+  amount: number;
+  placedAt: string;
+  gameName:string
+}
+
+export const getTransactionHistory = async (userId: number): Promise<TransactionHistory[]> => {
+  try {
+    console.log('Fetching transaction history for userId:', userId);
+    const response = await apiRequest(ENDPOINTS.PAYMENT.FUND_HISTORY(userId));
+
+    
+    if (response.ok) {
+      const data = await response.json();
+      console.log('Transaction history API response:', data);
+      // Transform the API response to match our interface
+      const transactions = data.response?.map((item: any) => ({
+        id: item.historyId,
+        type: item.transactionType === 'RECHARGE' ? 'credit' : 'debit',
+        amount: item.amount,
+        description: item.transactionType ,
+
+        status: "SUCCESS",
+        transactionTime:item.transactionTime
+      })) || [];
+      
+      console.log('Transformed transactions:', transactions);
+      return transactions;
+    } else {
+      console.error('Failed to fetch transaction history:', response.status);
+      return [];
+    }
+  } catch (error) {
+    console.error('Error fetching transaction history:', error);
+    return [];
+  }
+};
+
+
+
+
+export const getGameBidHistory = async (userId: number): Promise<GameBidHistory[]> => {
+  try {
+    console.log('Fetching game bid history for userId:', userId);
+    const response = await apiRequest(ENDPOINTS.BIDS.HISTORY(userId));
+    
+    if (response.ok) {
+      const data = await response.json();
+      console.log('Game bid history API response:', data);
+      // Transform the API response to match our interface
+      const bids = data.response?.map((item: any) => ({
+        id: item.bidId,
+        bidType: item.bidType,
+        bidNumber: item.bidNumber || item.number || item.bidValue || 'N/A',
+        bidTiming: item.bidTiming || item.timing || 'N/A',
+        resultStatus: item.resultStatus?.toLowerCase() || 'active',
+        amount: item.amount,
+        placedAt:item.placedAt,
+        gameName:item.gameName
+      })) || [];
+      console.log('Transformed bids:', bids);
+      return bids;
+    } else {
+      console.error('Failed to fetch game bid history:', response.status);
+      return [];
+    }
+  } catch (error) {
+    console.error('Error fetching game bid history:', error);
     return [];
   }
 }; 

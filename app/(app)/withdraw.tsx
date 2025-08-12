@@ -12,83 +12,66 @@ import {
     TouchableOpacity,
     View,
 } from 'react-native';
+import { requestWithdrawal } from '../config/api';
 import { useUser } from '../contexts/UserContext';
 import { theme } from '../theme';
 
-type PaymentMethod = 'googlepay' | 'phonepe' | 'paytm' | 'bank';
-
-interface PaymentMethodOption {
-  id: PaymentMethod;
-  title: string;
-  placeholder: string;
-  icon: keyof typeof Ionicons.glyphMap;
-  color: string;
-}
-
 const WithdrawScreen: React.FC = () => {
-  const [points, setPoints] = useState('');
-  const [selectedMethod, setSelectedMethod] = useState<PaymentMethod>('googlepay');
-  const { userData } = useUser();
+  const [upiId, setUpiId] = useState('');
+  const [amount, setAmount] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const { userData, refreshUserData } = useUser();
   const currentBalance = userData?.walletBalance || 0;
 
-  const paymentMethods: PaymentMethodOption[] = [
-    {
-      id: 'googlepay',
-      title: 'Google Pay',
-      placeholder: 'Please add your google pay number',
-      icon: 'card',
-      color: '#4285F4',
-    },
-    {
-      id: 'phonepe',
-      title: 'PhonePe',
-      placeholder: 'Please add your phonePe number',
-      icon: 'card',
-      color: '#5F259F',
-    },
-    {
-      id: 'paytm',
-      title: 'PayTm',
-      placeholder: 'Please add your paytm number',
-      icon: 'card',
-      color: '#00BAF2',
-    },
-    {
-      id: 'bank',
-      title: 'Bank Account Number',
-      placeholder: 'Please add your bank details',
-      icon: 'business',
-      color: '#1E3A8A',
-    },
-  ];
-
   const handleSubmit = () => {
-    if (!points || parseInt(points) <= 0) {
-      Alert.alert('Error', 'Please enter a valid amount to withdraw');
+    const parsedAmount = parseInt(amount, 10);
+    const upiRegex = /^[a-zA-Z0-9._\-]{2,}@[a-zA-Z]{2,}$/;
+
+    if (!upiId || !upiRegex.test(upiId)) {
+      Alert.alert('Error', 'Please enter a valid UPI ID');
       return;
     }
 
-    if (parseInt(points) > currentBalance) {
+    if (!parsedAmount || parsedAmount <= 0 && parsedAmount<=300) {
+      Alert.alert('Error', 'Please enter a valid amount to withdraw ');
+      return;
+    }
+
+    if (parsedAmount > currentBalance) {
       Alert.alert('Error', 'Insufficient balance');
       return;
     }
 
-    Alert.alert(
-      'Confirm Withdrawal',
-      `You are about to withdraw ${points} points via ${paymentMethods.find(m => m.id === selectedMethod)?.title}. Proceed?`,
-      [
-        {
-          text: 'Cancel',
-          style: 'cancel',
+    Alert.alert('Confirm Withdrawal', `Withdraw ₹${parsedAmount} to UPI ${upiId}?`, [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Proceed',
+        onPress: async () => {
+          if (!userData?.userId) {
+            Alert.alert('Error', 'User not found. Please login again.');
+            return;
+          }
+          try {
+            setIsSubmitting(true);
+            const result = await requestWithdrawal(userData.userId, parsedAmount, upiId);
+            if (result.success) {
+              if (userData.phone) {
+                try { await refreshUserData(userData.phone); } catch {}
+              }
+              Alert.alert('Success', ` Your Withdrawal request for ₹${amount} is  submitted `, [
+                { text: 'OK', onPress: () => router.back() },
+              ]);
+            } else {
+              Alert.alert('Failed', result.message || 'Withdrawal request failed.');
+            }
+          } catch (e: any) {
+            Alert.alert('Error', e?.message || 'Something went wrong.');
+          } finally {
+            setIsSubmitting(false);
+          }
         },
-        {
-          text: 'Proceed',
-          onPress: () => {
-            Alert.alert('Success', 'Withdrawal request submitted. You will receive your payment by 11 AM.');
-          },
-        },
-      ]
-    );
+      },
+    ]);
   };
 
   return (
@@ -134,63 +117,52 @@ const WithdrawScreen: React.FC = () => {
           </Text>
         </View>
 
-        {/* Points Input */}
+        {/* UPI ID Input */}
         <View style={styles.inputContainer}>
           <View style={styles.inputWrapper}>
-            <Ionicons 
-              name="arrow-down-circle" 
-              size={20} 
-              color={theme.colors.primary} 
+            <Ionicons
+              name="at"
+              size={20}
+              color={theme.colors.primary}
               style={styles.inputIcon}
             />
             <TextInput
               style={styles.input}
-              placeholder="Enter Points"
+              placeholder="Enter UPI ID (e.g., username@bank)"
               placeholderTextColor={theme.colors.darkGray}
-              value={points}
-              onChangeText={setPoints}
+              value={upiId}
+              onChangeText={setUpiId}
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
+          </View>
+        </View>
+
+        {/* Amount Input */}
+        <View style={styles.inputContainer}>
+          <View style={styles.inputWrapper}>
+            <Ionicons
+              name="arrow-down-circle"
+              size={20}
+              color={theme.colors.primary}
+              style={styles.inputIcon}
+            />
+            <TextInput
+              style={styles.input}
+              placeholder="Enter Amount"
+              placeholderTextColor={theme.colors.darkGray}
+              value={amount}
+              onChangeText={setAmount}
               keyboardType="numeric"
             />
           </View>
         </View>
 
-        {/* Payment Method Options */}
-        <View style={styles.paymentMethodsContainer}>
-          <Text style={styles.sectionTitle}>Select Payment Method</Text>
-          {paymentMethods.map((method) => (
-            <TouchableOpacity
-              key={method.id}
-              style={[
-                styles.paymentMethodOption,
-                selectedMethod === method.id && styles.selectedPaymentMethod
-              ]}
-              onPress={() => setSelectedMethod(method.id)}
-            >
-              <View style={styles.radioContainer}>
-                <View style={[
-                  styles.radioButton,
-                  selectedMethod === method.id && styles.selectedRadioButton
-                ]}>
-                  {selectedMethod === method.id && (
-                    <View style={styles.radioInner} />
-                  )}
-                </View>
-              </View>
-              <View style={styles.paymentMethodContent}>
-                <Text style={styles.paymentMethodTitle}>{method.title}</Text>
-                <Text style={styles.paymentMethodPlaceholder}>{method.placeholder}</Text>
-              </View>
-              <View style={[styles.paymentMethodIcon, { backgroundColor: method.color }]}>
-                <Ionicons name={method.icon} size={24} color={theme.colors.white} />
-              </View>
-            </TouchableOpacity>
-          ))}
-        </View>
-
         {/* Submit Button */}
         <TouchableOpacity 
-          style={styles.submitButton}
+          style={[styles.submitButton, isSubmitting && { opacity: 0.7 }]}
           onPress={handleSubmit}
+          disabled={isSubmitting}
         >
           <Text style={styles.submitButtonText}>SUBMIT</Text>
         </TouchableOpacity>

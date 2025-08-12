@@ -18,7 +18,7 @@ interface GameRate {
 }
 
 export default function GameRatesScreen() {
-  const [showToast, setShowToast] = useState(false);
+
 
   const gameRates: GameRate[] = [
     {
@@ -65,25 +65,7 @@ export default function GameRatesScreen() {
     },
   ];
 
-  useEffect(() => {
-    // Simulate API call to fetch game rates
-    const fetchGameRates = async () => {
-      try {
-        // Simulate network delay
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        setShowToast(true);
-        
-        // Hide toast after 3 seconds
-        setTimeout(() => {
-          setShowToast(false);
-        }, 3000);
-      } catch (error) {
-        // Handle error silently
-      }
-    };
-
-    fetchGameRates();
-  }, []);
+ 
 
   return (
     <View style={styles.container}>
@@ -120,12 +102,7 @@ export default function GameRatesScreen() {
         </View>
       </ScrollView>
 
-      {/* Toast Message */}
-      {showToast && (
-        <View style={styles.toast}>
-          <Text style={styles.toastText}>Successfully Fetched</Text>
-        </View>
-      )}
+    
     </View>
   );
 }

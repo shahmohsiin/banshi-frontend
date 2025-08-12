@@ -10,7 +10,7 @@ import {
     View,
 } from 'react-native';
 import { useUser } from '../contexts/UserContext';
-import { theme } from '../theme';
+import { useTheme } from '../contexts/ThemeContext';
 
 interface MenuItem {
   id: string;
@@ -26,8 +26,17 @@ interface SidebarProps {
   activeRoute?: string;
 }
 
+const THEME_OPTIONS = [
+  { mode: 'system', label: 'System', icon: 'contrast' },
+  { mode: 'light', label: 'Light', icon: 'sunny' },
+  { mode: 'dark', label: 'Dark', icon: 'moon' },
+] as const;
+
+type ThemeOption = typeof THEME_OPTIONS[number];
+
 export const Sidebar: React.FC<SidebarProps> = ({ isVisible, onClose, activeRoute }) => {
   const { userData, clearUserData } = useUser();
+  const { theme, themeMode, setThemeMode } = useTheme();
 
   const handleLogout = async () => {
     Alert.alert(
@@ -41,8 +50,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ isVisible, onClose, activeRout
           onPress: async () => {
             await clearUserData();
             router.replace('/');
-            // Navigation will be handled automatically by the layout
-           
           }
         },
       ]
@@ -95,7 +102,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isVisible, onClose, activeRout
       title: 'My History',
       icon: 'time',
       onPress: () => {
-        Alert.alert('My History', 'Transaction history');
+        router.push('/(app)/history');
         onClose();
       },
       isActive: activeRoute === 'history',
@@ -110,16 +117,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isVisible, onClose, activeRout
       },
       isActive: activeRoute === 'rates',
     },
-    {
-      id: 'how-to-play',
-      title: 'How to Play',
-      icon: 'play-circle',
-      onPress: () => {
-        Alert.alert('How to Play', 'Game instructions');
-        onClose();
-      },
-      isActive: activeRoute === 'how-to-play',
-    },
+    
     {
       id: 'contact',
       title: 'Contact Us',
@@ -130,26 +128,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ isVisible, onClose, activeRout
       },
       isActive: activeRoute === 'contact',
     },
-    {
-      id: 'share',
-      title: 'Share With Friends',
-      icon: 'share-social',
-      onPress: () => {
-        Alert.alert('Share', 'Share app with friends');
-        onClose();
-      },
-      isActive: activeRoute === 'share',
-    },
-    {
-      id: 'rate-app',
-      title: 'Rate App',
-      icon: 'star',
-      onPress: () => {
-        Alert.alert('Rate App', 'Rate us on app store');
-        onClose();
-      },
-      isActive: activeRoute === 'rate-app',
-    },
+   
+    
     {
       id: 'change-password',
       title: 'Change Password',
@@ -173,52 +153,92 @@ export const Sidebar: React.FC<SidebarProps> = ({ isVisible, onClose, activeRout
   return (
     <View style={styles.overlay}>
       <TouchableOpacity style={styles.backdrop} onPress={onClose} />
-      <View style={styles.sidebar}>
+      <View style={[styles.sidebar, { backgroundColor: theme.colors.surface }]}> 
         {/* Header */}
-        <View style={styles.header}>
-          <View style={styles.userInfo}>
-            <View style={styles.avatar}>
-              <Ionicons name="person" size={30} color={theme.colors.white} />
-            </View>
-            <View style={styles.userDetails}>
-              <Text style={styles.userName}>{userData?.name || 'User'}</Text>
-              <Text style={styles.userPhone}>{userData?.phone || 'No phone'}</Text>
-            </View>
-          </View>
-          <TouchableOpacity style={styles.closeButton} onPress={onClose}>
-            <Ionicons name="close" size={24} color={theme.colors.white} />
-          </TouchableOpacity>
-        </View>
+        <View style={[styles.header, { backgroundColor: theme.colors.primary }]}> 
+          <View style={styles.userInfo}> 
+            <View style={styles.avatar}> 
+              <Ionicons name="person" size={30} color={theme.colors.white} /> 
+            </View> 
+            <View style={styles.userDetails}> 
+              <Text style={styles.userName}>{userData?.name || 'User'}</Text> 
+              <Text style={styles.userPhone}>{userData?.phone || 'No phone'}</Text> 
+            </View> 
+          </View> 
+          <TouchableOpacity style={styles.closeButton} onPress={onClose}> 
+            <Ionicons name="close" size={24} color={theme.colors.white} /> 
+          </TouchableOpacity> 
+        </View> 
 
         {/* Menu Items */}
-        <ScrollView style={styles.menuContainer}>
-          {menuItems.map((item) => (
-            <TouchableOpacity
-              key={item.id}
-              style={[styles.menuItem, item.isActive && styles.activeMenuItem]}
-              onPress={item.onPress}
-            >
-              <Ionicons
-                name={item.icon}
-                size={24}
-                color={item.isActive ? theme.colors.primary : theme.colors.darkGray}
-              />
-              <Text
-                style={[
-                  styles.menuItemText,
-                  item.isActive && styles.activeMenuItemText,
-                ]}
-              >
-                {item.title}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
+        <ScrollView style={styles.menuContainer}> 
+          {menuItems.map((item) => ( 
+            <TouchableOpacity 
+              key={item.id} 
+              style={[ 
+                styles.menuItem,  
+                { backgroundColor: theme.colors.surface }, 
+                item.isActive && [styles.activeMenuItem, {  
+                  backgroundColor: theme.colors.card, 
+                  borderLeftColor: theme.colors.primary  
+                }] 
+              ]} 
+              onPress={item.onPress} 
+            > 
+              <Ionicons 
+                name={item.icon} 
+                size={24} 
+                color={item.isActive ? theme.colors.primary : theme.colors.textSecondary} 
+              /> 
+              <Text 
+                style={[ 
+                  styles.menuItemText, 
+                  { color: theme.colors.text }, 
+                  item.isActive && [styles.activeMenuItemText, { color: theme.colors.primary }], 
+                ]} 
+              > 
+                {item.title} 
+              </Text> 
+            </TouchableOpacity> 
+          ))} 
+        </ScrollView> 
 
-        {/* Footer */}
-        
-      </View>
-    </View>
+        {/* Theme Mode Segmented Control at Bottom */}
+        <View style={styles.themeSegmentedContainer}>
+          <Text style={[styles.themeSegmentedLabel, { color: theme.colors.textSecondary }]}>Theme</Text>
+          <View style={styles.themeSegmentedControl}>
+            {THEME_OPTIONS.map((option) => (
+              <TouchableOpacity
+                key={option.mode}
+                style={[
+                  styles.themeSegmentedButton,
+                  themeMode === option.mode && {
+                    backgroundColor: theme.colors.primary,
+                  },
+                ]}
+                onPress={() => setThemeMode(option.mode as any)}
+              >
+                <Ionicons
+                  name={option.icon}
+                  size={18}
+                  color={themeMode === option.mode ? theme.colors.white : theme.colors.textSecondary}
+                  style={{ marginBottom: 2 }}
+                />
+                <Text
+                  style={{
+                    color: themeMode === option.mode ? theme.colors.white : theme.colors.textSecondary,
+                    fontWeight: themeMode === option.mode ? 'bold' : 'normal',
+                    fontSize: 13,
+                  }}
+                >
+                  {option.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+      </View> 
+    </View> 
   );
 };
 
@@ -241,18 +261,16 @@ const styles = StyleSheet.create({
     left: 0,
     width: 280,
     height: '100%',
-    backgroundColor: theme.colors.gray,
-    shadowColor: theme.colors.black,
+    shadowColor: '#000000',
     shadowOffset: { width: 2, height: 0 },
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
     elevation: 5,
   },
   header: {
-    backgroundColor: theme.colors.primary,
     paddingTop: 50,
-    paddingHorizontal: theme.spacing.lg,
-    paddingBottom: theme.spacing.lg,
+    paddingHorizontal: 16,
+    paddingBottom: 16,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
@@ -269,7 +287,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, 0.2)',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: theme.spacing.sm,
+    marginRight: 8,
   },
   userDetails: {
     flex: 1,
@@ -277,40 +295,60 @@ const styles = StyleSheet.create({
   userName: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: theme.colors.white,
-    marginBottom: theme.spacing.xs,
+    color: '#FFFFFF',
+    marginBottom: 4,
   },
   userPhone: {
     fontSize: 12,
     color: 'rgba(255, 255, 255, 0.8)',
   },
   closeButton: {
-    padding: theme.spacing.xs,
+    padding: 4,
   },
   menuContainer: {
     flex: 1,
-    paddingTop: theme.spacing.lg,
+    paddingTop: 16,
   },
   menuItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: theme.spacing.lg,
-    paddingVertical: theme.spacing.md,
-    
+    paddingHorizontal: 16,
+    paddingVertical: 12,
   },
   activeMenuItem: {
-    backgroundColor: 'rgba(255, 107, 53, 0.1)',
     borderLeftWidth: 3,
-    borderLeftColor: theme.colors.primary,
   },
   menuItemText: {
     fontSize: 16,
-    color: theme.colors.black,
-    marginLeft: theme.spacing.md,
+    marginLeft: 12,
   },
   activeMenuItemText: {
-    color: theme.colors.primary,
     fontWeight: 'bold',
   },
-
+  themeSegmentedContainer: {
+    padding: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#eee',
+    backgroundColor: 'transparent',
+  },
+  themeSegmentedLabel: {
+    fontSize: 13,
+    fontWeight: 'bold',
+    marginBottom: 8,
+    letterSpacing: 0.5,
+  },
+  themeSegmentedControl: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    backgroundColor: 'rgba(0,0,0,0.03)',
+    borderRadius: 8,
+    padding: 2,
+  },
+  themeSegmentedButton: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 8,
+    borderRadius: 6,
+    marginHorizontal: 2,
+  },
 }); 

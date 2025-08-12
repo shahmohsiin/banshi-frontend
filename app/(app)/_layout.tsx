@@ -10,14 +10,15 @@ export default function AppLayout() {
     >
       <Stack.Screen name="index" />
       <Stack.Screen name="profile" />
+      <Stack.Screen name="update-profile" />
       <Stack.Screen name="change-password" />
       <Stack.Screen name="contact-us" />
       <Stack.Screen name="game-rates" />
       <Stack.Screen name="add-fund" />
       <Stack.Screen name="withdraw" />
       <Stack.Screen name="notice" />
-      <Stack.Screen name="wallet" />
       <Stack.Screen name="game-screen" />
+      <Stack.Screen name="history" />
     </Stack>
   );
 } 

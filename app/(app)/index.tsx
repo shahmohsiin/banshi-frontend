@@ -1,6 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
+import useTodayString from '../hooks/date';
+
 import {
   ActivityIndicator,
   Alert,
@@ -10,14 +12,16 @@ import {
   StyleSheet,
   Text,
   TouchableOpacity,
-  View
+  View,Image
 } from 'react-native';
 import { Sidebar } from '../components/Sidebar';
 import { StartupModal } from '../components/StartupModal';
+
 import { useUser } from '../contexts/UserContext';
+import { useTheme } from '../contexts/ThemeContext';
 import { useGame } from '../hooks/useGame';
-import { GameItem } from '../services/gameApi';
-import { theme } from '../theme';
+
+import MarqueeView from 'react-native-marquee-view';
 
 export default function HomeScreen() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -26,10 +30,18 @@ export default function HomeScreen() {
   const { state, fetchGames, clearError } = useGame();
   const { userData, refreshUserData } = useUser();
   const { isLoading } = useUser();
+  const { theme } = useTheme();
 
   useEffect(() => {
     loadGames();
     console.log('userData', userData);
+    
+    // Refresh user data when component mounts
+    if (userData?.phone) {
+      refreshUserData(userData.phone).catch(error => {
+        console.error('Error refreshing user data on home screen:', error);
+      });
+    }
   }, []);
 
   const loadGames = async () => {
@@ -44,6 +56,10 @@ export default function HomeScreen() {
     setRefreshing(true);
     try {
       await loadGames();
+      // Also refresh user data
+      if (userData?.phone) {
+        await refreshUserData(userData.phone);
+      }
     } finally {
       setRefreshing(false);
     }
@@ -65,35 +81,12 @@ export default function HomeScreen() {
   const handleCloseModal = () => setShowWelcomeModal(false);
 
   const goToNotifications = () => router.push('/(app)/notice');
-  const goToWallet = () => router.push('/(app)/wallet');
+
   const goToAddFunds = () => router.push('/(app)/add-fund');
   const goToWithdraw = () => router.push('/(app)/withdraw');
+  const goToHistory = () => router.push('/(app)/history');
 
-  const handlePlayGame = (game: GameItem) => {
-    console.log('handlePlayGame called with game:', game);
-    console.log('Game status:', game.status);
-    console.log('Game closeTime:', game.closeTime);
-    
-    // Only allow navigation if game is running
-    if (game.status !== 'running') {
-      Alert.alert('Game Closed', 'This game is currently closed and cannot be played.');
-      return;
-    }
-    
-    // Navigate to the new GameScreen, passing game name, openDate, closeDate
-    router.push({
-      pathname: '/(app)/game-screen',
-      params: {
-        gameName: game.name,
-        openTime: game.openDate.toISOString(),
-        closeTime: game.closeDate.toISOString(),
-      },
-    });
-  };
-
-  const handleViewChart = (game: GameItem) => {
-    Alert.alert('View Chart', `Opening chart for: ${game.name}`);
-  };
+ 
 
   const handleContactWhatsApp = () => {
     Alert.alert('Contact', 'WhatsApp contact: 8442017014');
@@ -115,65 +108,24 @@ export default function HomeScreen() {
     }
   };
 
-  const renderGameItem = (game: GameItem) => (
-    <View key={game.id} style={styles.gameCard}>
-      {/* Chart Button */}
-      <View style={styles.gameLeft}>
-        <TouchableOpacity style={styles.chartButton} onPress={() => handleViewChart(game)}>
-          <View style={styles.chartIcon}>
-            <Ionicons name="bar-chart" size={20} color={theme.colors.white} />
-          </View>
-          <Text style={styles.chartText}>CHART</Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Game Info */}
-      <View style={styles.gameCenter}>
-        <Text style={styles.gameName}>{game.name.toUpperCase()}</Text>
-        <Text style={styles.gameNumbers}>{game.currentNumbers}</Text>
-        <View style={styles.gameTiming}>
-          <Text style={styles.timingText}>OPEN: {game.openTime}</Text>
-          <Text style={styles.timingText}>CLOSE: {game.closeTime}</Text>
-        </View>
-      </View>
-
-      {/* Play Button */}
-      <View style={styles.gameRight}>
-        <Text style={[
-          styles.statusText, 
-          { color: getStatusColor(game.status) }
-        ]}>
-          {getStatusText(game.status).toUpperCase()}
-        </Text>
-        <TouchableOpacity 
-          style={[
-            styles.playButton,
-            { backgroundColor: game.status === 'running' ? theme.colors.green : theme.colors.darkGray }
-          ]}
-          onPress={() => game.status === 'running' ? handlePlayGame(game) : null}
-          disabled={game.status !== 'running'}
-        >
-          <Ionicons name="play" size={24} color={theme.colors.white} />
-        </TouchableOpacity>
-        <Text style={styles.playText}>PLAY GAME</Text>
-      </View>
-    </View>
-  );
+ 
 
   const getStatusColor = (status: string) => {
-    if (status === 'running') return theme.colors.green;
-    if (status === 'closed') return theme.colors.red;
-    return theme.colors.blue;
+    if (status === 'running') return theme.colors.running;
+    if (status === 'closed') return theme.colors.closed;
+    return theme.colors.closed; // Default to red for any other status
   };
 
   const getStatusText = (status: string) => {
-    return status.charAt(0).toUpperCase() + status.slice(1);
+    if (status === 'running') return 'PLAY';
+    if (status === 'closed') return 'CLOSED';
+    return 'CLOSED'; // Default to CLOSED for any other status
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { backgroundColor: theme.colors.primary }]}>
         <TouchableOpacity style={styles.menuButton} onPress={handleMenuPress}>
           <Ionicons name="menu" size={24} color={theme.colors.white} />
         </TouchableOpacity>
@@ -183,7 +135,7 @@ export default function HomeScreen() {
             <Ionicons name="notifications" size={24} color={theme.colors.white} />
           </TouchableOpacity>
           {/* Wallet Button */}
-          <TouchableOpacity style={styles.walletButton} onPress={goToWallet}>
+          <TouchableOpacity style={styles.walletButton} >
             <Ionicons name="diamond" size={24} color="#4FC3F7" />
             <Text style={styles.walletAmount}>{userData?.walletBalance || 0}</Text>
           </TouchableOpacity>
@@ -196,13 +148,28 @@ export default function HomeScreen() {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
       >
+        
+   
         {/* App Title */}
-        <View style={styles.appTitleSection}>
-          <Text style={styles.appTitle}>BANSHI</Text>
+        <View style={[styles.appTitleSection, { backgroundColor: theme.colors.primary }]}>
+           
+         <Image
+      source={require('../../assets/icons/header.png')}
+      style={{
+        width:"60%",
+        height: 100,
+        borderRadius:20,
+        margin:5,
+        
+      }}
+     
+    />
+          <Text style={styles.appTitle}>BANSHI GROUP OFFICIAL</Text>
+
         </View>
 
         {/* Quick Actions */}
-        <View style={styles.quickActions}>
+        <View style={[styles.quickActions, { backgroundColor: theme.colors.primary }]}>
           <View style={styles.actionRow}>
             <TouchableOpacity style={styles.actionButton} onPress={goToAddFunds}>
               <View style={styles.actionIcon}>
@@ -216,12 +183,30 @@ export default function HomeScreen() {
               </View>
               <Text style={styles.actionText}>Withdraw</Text>
             </TouchableOpacity>
+            <TouchableOpacity style={styles.actionButton} onPress={goToHistory}>
+              <View style={styles.actionIcon}>
+                <Ionicons name="time" size={24} color={theme.colors.white} />
+              </View>
+              <Text style={styles.actionText}>History</Text>
+            </TouchableOpacity>
           </View>
+        </View>
+
+        {/* Marquee Text */}
+        <View style={[styles.marqueeSection, { backgroundColor: theme.colors.surface }]}>
+        <MarqueeView
+  style={{
+   
+  }}>
+  <View>
+    <Text style={{color: theme.colors.text,fontSize: 16, fontWeight:900}}>WELCOME TO INDIA'S NO 1 TRUSTED BANSHI ONLINE MATKA APP</Text>
+  </View>
+</MarqueeView>
         </View>
 
         {/* Social Links */}
         <View style={styles.socialSection}>
-          <Text style={styles.sectionTitle}>Connect With Us</Text>
+          <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Connect With Us</Text>
           <View style={styles.socialButtons}>
             <TouchableOpacity style={[styles.socialButton, styles.whatsappButton]} onPress={handleContactWhatsApp}>
               <Ionicons name="logo-whatsapp" size={24} color={theme.colors.white} />
@@ -238,32 +223,14 @@ export default function HomeScreen() {
         <View style={styles.gamesSection}>
           {/* Error Message */}
           {state.error && (
-            <View style={styles.errorContainer}>
-              <Text style={styles.errorText}>{state.error}</Text>
+            <View style={[styles.errorContainer, { backgroundColor: theme.colors.surface }]}>
+              <Text style={[styles.errorText, { color: theme.colors.error }]}>{state.error}</Text>
               <TouchableOpacity style={styles.retryButton} onPress={clearError}>
-                <Ionicons name="refresh" size={16} color={theme.colors.red} />
+                <Ionicons name="refresh" size={16} color={theme.colors.error} />
               </TouchableOpacity>
             </View>
           )}
-          
-          <View style={styles.gamesList}>
-            {state.loading ? (
-              <View style={styles.loadingContainer}>
-                <ActivityIndicator size="large" color={theme.colors.primary} />
-                <Text style={styles.loadingText}>Loading games...</Text>
-              </View>
-            ) : state.games.length === 0 ? (
-              <View style={styles.emptyContainer}>
-                <Ionicons name="game-controller-outline" size={64} color={theme.colors.darkGray} />
-                <Text style={styles.emptyText}>No games available</Text>
-                <TouchableOpacity style={styles.retryButton} onPress={loadGames}>
-                  <Text style={styles.retryButtonText}>Try Again</Text>
-                </TouchableOpacity>
-              </View>
-            ) : (
-              state.games.map(renderGameItem)
-            )}
-          </View>
+         
         </View>
       </ScrollView>
 
@@ -286,57 +253,53 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: theme.colors.white,
   },
   header: {
-    backgroundColor: theme.colors.primary,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: theme.spacing.lg,
-    paddingVertical: theme.spacing.md,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     paddingTop: 50,
   },
   menuButton: {
-    padding: theme.spacing.xs,
+    padding: 4,
   },
   headerRight: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   notificationButton: {
-    padding: theme.spacing.xs,
-    marginRight: theme.spacing.sm,
+    padding: 4,
+    marginRight: 8,
   },
   walletButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: theme.spacing.xs,
+    padding: 4,
   },
   walletAmount: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: theme.colors.white,
-    marginLeft: theme.spacing.xs,
+    color: '#FFFFFF',
+    marginLeft: 4,
   },
   scrollView: {
     flex: 1,
   },
   appTitleSection: {
-    backgroundColor: theme.colors.primary,
-    paddingVertical: theme.spacing.lg,
+    paddingVertical: 24,
     alignItems: 'center',
   },
   appTitle: {
-    color: theme.colors.white,
-    fontSize: 32,
+    color: '#FFFFFF',
+    fontSize: 16,
     fontWeight: 'bold',
     textAlign: 'center',
   },
   quickActions: {
-    backgroundColor: theme.colors.primary,
-    paddingHorizontal: theme.spacing.lg,
-    paddingVertical: theme.spacing.md,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
   },
   actionRow: {
     flexDirection: 'row',
@@ -344,11 +307,11 @@ const styles = StyleSheet.create({
   },
   actionButton: {
     backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    borderRadius: theme.borderRadius.md,
-    padding: theme.spacing.md,
+    borderRadius: 12,
+    padding: 16,
     alignItems: 'center',
     flex: 1,
-    marginHorizontal: theme.spacing.xs,
+    marginHorizontal: 4,
   },
   actionIcon: {
     width: 40,
@@ -357,22 +320,30 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, 0.2)',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: theme.spacing.sm,
+    marginBottom: 8,
   },
   actionText: {
-    color: theme.colors.white,
+    color: '#FFFFFF',
     fontSize: 14,
     fontWeight: 'bold',
     textAlign: 'center',
   },
+  marqueeSection: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  marqueeText: {
+    height: 40,
+  },
   socialSection: {
-    padding: theme.spacing.lg,
+    padding: 16,
   },
   sectionTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: theme.colors.black,
-    marginBottom: theme.spacing.md,
+    marginBottom: 12,
   },
   socialButtons: {
     flexDirection: 'row',
@@ -381,69 +352,50 @@ const styles = StyleSheet.create({
   socialButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: theme.spacing.md,
-    paddingHorizontal: theme.spacing.lg,
-    borderRadius: theme.borderRadius.md,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 12,
     flex: 1,
-    marginHorizontal: theme.spacing.xs,
+    marginHorizontal: 4,
   },
   whatsappButton: {
-    backgroundColor: theme.colors.green,
+    backgroundColor: '#25D366',
   },
   telegramButton: {
-    backgroundColor: theme.colors.blue,
+    backgroundColor: '#0088CC',
+  },
+  contactButton: {
+    backgroundColor: '#FF6B35',
   },
   socialButtonText: {
-    color: theme.colors.white,
+    color: '#FFFFFF',
     fontSize: 16,
     fontWeight: 'bold',
-    marginLeft: theme.spacing.sm,
+    marginLeft: 8,
   },
   gamesSection: {
-    padding: theme.spacing.lg,
-   
-    marginHorizontal: -theme.spacing.lg,
-    marginTop: theme.spacing.lg,
-  },
-  gamesHeader: {
-    alignItems: 'center',
-    marginBottom: theme.spacing.lg,
-    paddingHorizontal: theme.spacing.lg,
-  },
-  gamesTitle: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: theme.colors.black,
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-  },
-  gamesSubtitle: {
-    fontSize: 16,
-    color: theme.colors.darkGray,
-    marginTop: theme.spacing.xs,
-    textAlign: 'center',
+    padding: 16,
+    marginHorizontal: -16,
+    marginTop: 16,
   },
   gamesList: {
-    gap: theme.spacing.md,
-    paddingHorizontal: theme.spacing.lg,
+    gap: 12,
+    paddingHorizontal: 16,
   },
   gameCard: {
     flexDirection: 'row',
-    backgroundColor: theme.colors.white,
-    borderRadius: theme.borderRadius.lg,
-    padding: theme.spacing.lg,
-    shadowColor: theme.colors.black,
+    borderRadius: 16,
+    padding: 16,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.15,
     shadowRadius: 8,
     elevation: 5,
     borderWidth: 1,
-    borderColor: theme.colors.lightGray,
   },
   gameLeft: {
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: theme.spacing.md,
+    marginRight: 12,
   },
   chartButton: {
     alignItems: 'center',
@@ -452,11 +404,9 @@ const styles = StyleSheet.create({
     width: 50,
     height: 50,
     borderRadius: 25,
-    backgroundColor: theme.colors.primary,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: theme.spacing.sm,
-    shadowColor: theme.colors.primary,
+    marginBottom: 8,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.3,
     shadowRadius: 4,
@@ -464,7 +414,6 @@ const styles = StyleSheet.create({
   },
   chartText: {
     fontSize: 12,
-    color: theme.colors.darkGray,
     fontWeight: 'bold',
     letterSpacing: 0.5,
   },
@@ -475,23 +424,20 @@ const styles = StyleSheet.create({
   gameName: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: theme.colors.black,
-    marginBottom: theme.spacing.sm,
+    marginBottom: 8,
     letterSpacing: 0.5,
   },
   gameNumbers: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: theme.colors.primary,
-    marginBottom: theme.spacing.sm,
+    marginBottom: 8,
     letterSpacing: 1,
   },
   gameTiming: {
-    marginTop: theme.spacing.sm,
+    marginTop: 8,
   },
   timingText: {
     fontSize: 12,
-    color: theme.colors.darkGray,
     marginBottom: 2,
     fontWeight: '500',
     letterSpacing: 0.3,
@@ -499,12 +445,12 @@ const styles = StyleSheet.create({
   gameRight: {
     alignItems: 'center',
     justifyContent: 'center',
-    marginLeft: theme.spacing.md,
+    marginLeft: 12,
   },
   statusText: {
     fontSize: 12,
     fontWeight: 'bold',
-    marginBottom: theme.spacing.sm,
+    marginBottom: 8,
     letterSpacing: 0.5,
   },
   playButton: {
@@ -513,8 +459,7 @@ const styles = StyleSheet.create({
     borderRadius: 30,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: theme.spacing.sm,
-    shadowColor: theme.colors.black,
+    marginBottom: 8,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,
     shadowRadius: 4,
@@ -522,27 +467,24 @@ const styles = StyleSheet.create({
   },
   playText: {
     fontSize: 12,
-    color: theme.colors.darkGray,
     fontWeight: 'bold',
     letterSpacing: 0.5,
   },
   loadingContainer: {
     alignItems: 'center',
-    padding: theme.spacing.xl,
+    padding: 32,
   },
   loadingText: {
     fontSize: 16,
-    color: theme.colors.darkGray,
     fontWeight: 'bold',
     letterSpacing: 0.5,
   },
   emptyContainer: {
     alignItems: 'center',
-    padding: theme.spacing.xl,
+    padding: 32,
   },
   emptyText: {
     fontSize: 16,
-    color: theme.colors.darkGray,
     fontWeight: 'bold',
     letterSpacing: 0.5,
   },
@@ -550,22 +492,19 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: theme.spacing.md,
-    backgroundColor: theme.colors.lightGray,
-    borderRadius: theme.borderRadius.md,
-    marginBottom: theme.spacing.md,
+    padding: 12,
+    borderRadius: 12,
+    marginBottom: 12,
   },
   errorText: {
-    color: theme.colors.red,
     fontSize: 14,
     fontWeight: 'bold',
     flex: 1,
   },
   retryButton: {
-    padding: theme.spacing.xs,
+    padding: 4,
   },
   retryButtonText: {
-    color: theme.colors.red,
     fontSize: 14,
     fontWeight: 'bold',
   },

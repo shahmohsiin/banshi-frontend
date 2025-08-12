@@ -84,7 +84,7 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
   }, [saveUserData]);
 
   const setUserDataWithStorage = useCallback(async (data: UserData | null) => {
-    console.log('Setting user data:', data ? data.name : 'null');
+    console.log('Setting user data:', data ? `${data.name} (Balance: ${data.walletBalance})` : 'null');
     setUserData(data);
     await saveUserData(data);
     console.log('User data saved to storage successfully');
@@ -92,8 +92,10 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
 
   const refreshUserData = useCallback(async (phone: string) => {
     try {
+      console.log('Refreshing user data for phone:', phone);
       // Import here to avoid circular dependency
       const data = await getUserByPhone(phone);
+      console.log('Refreshed user data:', data);
       setUserDataWithStorage(data);
     } catch (error) {
       console.error('Error refreshing user data:', error);

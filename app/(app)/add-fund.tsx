@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React, { useState } from 'react';
+import RazorpayCheckout from 'react-native-razorpay';
 import {
     ActivityIndicator,
     Alert,
@@ -21,6 +22,7 @@ const AddFundScreen: React.FC = () => {
   const [points, setPoints] = useState('');
   const [selectedMethod, setSelectedMethod] = useState('');
   const { userData } = useUser();
+  // Always use test mode for payment
   const { processPayment, isLoading, error } = usePayment();
   const currentPoints = userData?.walletBalance || 0;
 
@@ -37,6 +39,36 @@ const AddFundScreen: React.FC = () => {
     }
 
     const amount = parseInt(points);
+
+
+  //   const HandlePayment= ()=>{
+  //     const options = {
+  //   description: 'Adding Fund',
+  //   image: 'https://i.imgur.com/3g7nmJC.png',
+  //   currency: 'INR',
+  //   key: '', // Your api key
+  //   amount: amount*100,
+  //   name: 'Mohsin',
+  //   order_id:"hello",
+  //   prefill:{
+  //     email:userData?.email,
+  //     contact:userData?.phone,
+  //     Name:userData?.name
+  //   },
+    
+  //   theme: {color: '#F37254'}
+  // }   
+
+  // RazorpayCheckout.open(options).then((data)=>{
+  //   alert(`Success:${data.razorpay_payment_id}`);
+  
+  // }).catch((error)=>{
+  //   alert(`Error:${error.code}|${error.description}`)
+  // });
+
+  //   }
+ 
+
     
     Alert.alert(
       'Confirm Payment',

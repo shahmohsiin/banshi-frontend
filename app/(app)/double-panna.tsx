@@ -1,22 +1,23 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useState } from 'react';
+import useTodayString from '../hooks/date'
 import {
     ActivityIndicator,
     Alert,
     SafeAreaView,
     StyleSheet,
     Text,
-    TextInput,
     TouchableOpacity,
-    View
+    View,TextInput
 } from 'react-native';
 import { useUser } from '../contexts/UserContext';
 import { theme } from '../theme';
-import { isValidDoublePanna } from '../utils/pannaValidation';
+import { placeBid } from '../config/api';
+import SuggestiveInput from '../components/SuggestiveInput';
 
 export default function DoublePannaScreen() {
-  const { gameName } = useLocalSearchParams();
+  const { gameName, gameId } = useLocalSearchParams();
   const { userData, refreshUserData } = useUser();
   const [panna, setPanna] = useState('');
   const [amount, setAmount] = useState('');
@@ -50,10 +51,7 @@ export default function DoublePannaScreen() {
     }
     
     // Validate panna using the valid array
-    if (!isValidDoublePanna(panna)) {
-      Alert.alert('Error', 'Please enter a valid double panna number');
-      return;
-    }
+ 
     
     const bidAmount = parseInt(amount);
     
@@ -70,25 +68,17 @@ export default function DoublePannaScreen() {
     setIsLoading(true);
 
     try {
-      const response = await fetch('https://71761c8318d5.ngrok-free.app/api/bids/place', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          userId: userData?.userId,
-          gameId: parseInt(gameName?.toString().toLowerCase().replace(/\s+/g, '_') || '1') || 1,
-          bidType: 'DOUBLE_PANNA',
-          bidTiming: selectedStatus,
-          number: panna,
-          amount: bidAmount,
-        }),
+      const result = await placeBid({
+        userId: userData?.userId,
+        gameId: parseInt(gameId as string) || 1,
+        bidType: 'DOUBLE_PANNA',
+        bidTiming: selectedStatus,
+        number: panna,
+        amount: bidAmount,
       });
-
-      const result = await response.json();
       console.log('API Response:', result);
 
-      if (response.ok && result.success) {
+      if (result.success) {
         Alert.alert('Success', 'Bid placed successfully!');
         
         // Refresh wallet balance after successful bid
@@ -170,7 +160,7 @@ export default function DoublePannaScreen() {
 
       {/* Date and Status Section */}
       <View style={styles.dateCard}>
-        <Text style={styles.dateText}>Mon-04-August-2025</Text>
+        <Text style={styles.dateText}>{useTodayString()}</Text>
         <View style={styles.statusButtons}>
           <TouchableOpacity 
             style={[
@@ -208,25 +198,24 @@ export default function DoublePannaScreen() {
       {/* Input Fields */}
       <View style={styles.inputSection}>
         <View style={styles.inputContainer}>
-          <TextInput
-            style={[styles.input, !hasBalance && styles.disabledInput]}
-            placeholder={hasBalance ? "Enter Double Panna (000-999)" : "Add funds to place bid"}
+          <SuggestiveInput
             value={panna}
             onChangeText={handlePannaChange}
+            placeholder={hasBalance ? "Enter Double Panna (000-999)" : "Add funds to place bid"}
+            placeholderTextColor={"black"}
             keyboardType="numeric"
             maxLength={3}
             editable={!isLoading && hasBalance}
+            gameType="DOUBLE_PANNA"
+            style={[styles.input, !hasBalance && styles.disabledInput]}
           />
-          <View style={styles.inputLine} />
-          {panna.length === 3 && !isValidDoublePanna(panna) && (
-            <Text style={styles.errorText}>Invalid double panna number</Text>
-          )}
         </View>
 
         <View style={styles.inputContainer}>
-          <TextInput
+        <TextInput
             style={[styles.input, !hasBalance && styles.disabledInput]}
             placeholder={hasBalance ? "Enter Amount" : "Add funds to place bid"}
+            placeholderTextColor={"black"}
             value={amount}
             onChangeText={handleAmountChange}
             keyboardType="numeric"
@@ -240,10 +229,10 @@ export default function DoublePannaScreen() {
       <TouchableOpacity 
         style={[
           styles.addBidButton, 
-          (isLoading || !hasBalance || (panna.length === 3 && !isValidDoublePanna(panna))) && styles.disabledButton
+          (isLoading || !hasBalance || (panna.length !== 3 )) && styles.disabledButton
         ]} 
         onPress={handleAddBid}
-        disabled={isLoading || !hasBalance || (panna.length === 3 && !isValidDoublePanna(panna))}
+        disabled={isLoading || !hasBalance || (panna.length !== 3)}
       >
         {isLoading ? (
           <View style={styles.loadingContainer}>

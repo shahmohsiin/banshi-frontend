@@ -14,7 +14,7 @@ export const useGame = () => {
       const data = await fetchGamesFromApi();
       setGames(data);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch games');
+     
     } finally {
       setLoading(false);
     }

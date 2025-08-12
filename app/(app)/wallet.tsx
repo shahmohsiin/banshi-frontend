@@ -1,12 +1,13 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
     ScrollView,
     StyleSheet,
     Text,
     TouchableOpacity,
     View,
+    Alert,
 } from 'react-native';
 import { useUser } from '../contexts/UserContext';
 import { theme } from '../theme';
@@ -20,8 +21,31 @@ interface Transaction {
 }
 
 const WalletScreen: React.FC = () => {
-  const { userData } = useUser();
+  const { userData, refreshUserData } = useUser();
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const currentPoints = userData?.walletBalance || 0;
+
+  // Refresh user data when component mounts
+  useEffect(() => {
+    if (userData?.phone) {
+      refreshUserDataFromAPI();
+    }
+  }, []);
+
+  const refreshUserDataFromAPI = async () => {
+    if (!userData?.phone) return;
+    
+    setIsRefreshing(true);
+    try {
+      await refreshUserData(userData.phone);
+      console.log('User data refreshed successfully');
+    } catch (error) {
+      console.error('Error refreshing user data:', error);
+      Alert.alert('Error', 'Failed to refresh wallet balance. Please try again.');
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
 
   const transactions: Transaction[] = [
     {
@@ -53,7 +77,9 @@ const WalletScreen: React.FC = () => {
           <Ionicons name="arrow-back" size={24} color={theme.colors.black} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Wallet</Text>
-        <View style={styles.headerSpacer} />
+        <TouchableOpacity style={styles.refreshButton} onPress={refreshUserDataFromAPI} disabled={isRefreshing}>
+          <Ionicons name="refresh" size={24} color={isRefreshing ? theme.colors.darkGray : theme.colors.black} />
+        </TouchableOpacity>
       </View>
 
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
@@ -92,51 +118,8 @@ const WalletScreen: React.FC = () => {
           </TouchableOpacity>
         </View>
 
-        {/* Transaction History */}
-        <View style={styles.historySection}>
-          <Text style={styles.sectionTitle}>Transaction History</Text>
-          <View style={styles.historyList}>
-            {transactions.length === 0 ? (
-              <View style={styles.emptyHistory}>
-                <Ionicons name="receipt-outline" size={48} color={theme.colors.darkGray} />
-                <Text style={styles.emptyText}>No transactions yet</Text>
-                <Text style={styles.emptySubtext}>Your transaction history will appear here</Text>
-              </View>
-            ) : (
-              transactions.map((transaction) => (
-                <View key={transaction.id} style={styles.transactionItem}>
-                  <View style={styles.transactionLeft}>
-                    <View style={styles.transactionIcon}>
-                      <Ionicons 
-                        name={transaction.status === 'SUCCESSFUL' ? 'checkmark-circle' : 'time'} 
-                        size={20} 
-                        color={getStatusColor(transaction.status)} 
-                      />
-                    </View>
-                    <View style={styles.transactionInfo}>
-                      <Text style={styles.transactionTitle}>{transaction.title}</Text>
-                      <Text style={styles.transactionDate}>{transaction.date}</Text>
-                    </View>
-                  </View>
-                  <View style={styles.transactionRight}>
-                    <Text style={[
-                      styles.transactionAmount,
-                      { color: getStatusColor(transaction.status) }
-                    ]}>
-                      +{transaction.amount}
-                    </Text>
-                    <Text style={[
-                      styles.transactionStatus,
-                      { color: getStatusColor(transaction.status) }
-                    ]}>
-                      {transaction.status}
-                    </Text>
-                  </View>
-                </View>
-              ))
-            )}
-          </View>
-        </View>
+        
+       
       </ScrollView>
     </View>
   );
@@ -167,8 +150,8 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: theme.colors.black,
   },
-  headerSpacer: {
-    width: 40,
+  refreshButton: {
+    padding: theme.spacing.xs,
   },
   scrollView: {
     flex: 1,

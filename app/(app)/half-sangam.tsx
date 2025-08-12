@@ -1,65 +1,232 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useState } from 'react';
+import useTodayString from '../hooks/date';
 import {
     Alert,
     SafeAreaView,
     StyleSheet,
     Text,
-    TextInput,
     TouchableOpacity,
-    View
+    View,TextInput
 } from 'react-native';
 import { useUser } from '../contexts/UserContext';
 import { theme } from '../theme';
+import { placeBid } from '../config/api';
+import SuggestiveInput from '../components/SuggestiveInput';
+
 
 export default function HalfSangamScreen() {
-  const { gameName } = useLocalSearchParams();
-  const { userData } = useUser();
+  const { gameName, gameId } = useLocalSearchParams();
+  const { userData, refreshUserData } = useUser();
+  
+  // State for OPEN mode
   const [openDigit, setOpenDigit] = useState('');
   const [closePanna, setClosePanna] = useState('');
+  
+  // State for CLOSE mode
+  const [openPanna, setOpenPanna] = useState('');
+  const [closeDigit, setCloseDigit] = useState('');
+  
+  // Common state
   const [amount, setAmount] = useState('');
   const [selectedStatus, setSelectedStatus] = useState<'OPEN' | 'CLOSE'>('OPEN');
+  const [isLoading, setIsLoading] = useState(false);
+
+  const currentBalance = userData?.walletBalance || 0;
+  const hasBalance = currentBalance > 0;
 
   const handleBack = () => {
     router.back();
   };
 
-  const handleAddBid = () => {
-    if (!openDigit.trim()) {
-      Alert.alert('Error', 'Please enter an open digit');
-      return;
-    }
-    if (!closePanna.trim()) {
-      Alert.alert('Error', 'Please enter a close panna');
-      return;
-    }
+ 
+
+  const handleAddBid = async () => {
+    // Validate amount
     if (!amount.trim()) {
       Alert.alert('Error', 'Please enter an amount');
       return;
     }
-    if (openDigit.length !== 1) {
-      Alert.alert('Error', 'Please enter exactly 1 digit for open digit');
+
+    const amountValue = parseInt(amount);
+    if (isNaN(amountValue) || amountValue <= 0) {
+      Alert.alert('Error', 'Please enter a valid amount');
       return;
     }
-    if (closePanna.length !== 3) {
-      Alert.alert('Error', 'Please enter exactly 3 digits for close panna');
+
+    // Check balance
+    if (amountValue > currentBalance) {
+      Alert.alert('Error', 'Insufficient balance');
       return;
     }
-    if (parseInt(openDigit) < 0 || parseInt(openDigit) > 9) {
-      Alert.alert('Error', 'Please enter a valid open digit (0-9)');
+
+    if (selectedStatus === 'OPEN') {
+      // Validate OPEN mode fields
+      if (!openDigit.trim()) {
+        Alert.alert('Error', 'Please enter an open digit');
+        return;
+      }
+      if (!closePanna.trim()) {
+        Alert.alert('Error', 'Please enter a close panna');
+        return;
+      }
+
+      const openDigitValue = parseInt(openDigit);
+      if (isNaN(openDigitValue) || openDigitValue < 0 || openDigitValue > 9) {
+        Alert.alert('Error', 'Please enter a valid open digit (0-9)');
+        return;
+      }
+
+      // Format: openDigit + "-" + closePanna
+      const number = `${openDigit}-${closePanna}`;
+      
+      await placeBidRequest(number, amountValue);
+
+    } else {
+      // Validate CLOSE mode fields
+      if (!openPanna.trim()) {
+        Alert.alert('Error', 'Please enter an open panna');
+        return;
+      }
+      if (!closeDigit.trim()) {
+        Alert.alert('Error', 'Please enter a close digit');
+        return;
+      }
+
+     
+
+      const closeDigitValue = parseInt(closeDigit);
+      if (isNaN(closeDigitValue) || closeDigitValue < 0 || closeDigitValue > 9) {
+        Alert.alert('Error', 'Please enter a valid close digit (0-9)');
+        return;
+      }
+
+      // Format: openPanna + "-" + closeDigit
+      const number = `${openPanna}-${closeDigit}`;
+      
+      await placeBidRequest(number, amountValue);
+    }
+  };
+
+  const placeBidRequest = async (number: string, amountValue: number) => {
+    if (!userData?.userId) {
+      Alert.alert('Error', 'User data not found');
       return;
     }
-    if (parseInt(closePanna) < 0 || parseInt(closePanna) > 999) {
-      Alert.alert('Error', 'Please enter a valid close panna (000-999)');
-      return;
+
+    setIsLoading(true);
+    try {
+      const requestBody = {
+        userId: userData.userId,
+        gameId: parseInt(gameId as string) || 1,
+        bidType: 'HALF_SANGAM',
+        bidTiming: selectedStatus,
+        number: number,
+        amount: amountValue,
+        
+      };
+
+      console.log('Placing bid with data:', requestBody);
+      const result = await placeBid(requestBody);
+      console.log('API Response:', result);
+
+      if (result.success) {
+        Alert.alert('Success', 'Bid placed successfully!');
+        // Reset form
+        setOpenDigit('');
+        setClosePanna('');
+        setOpenPanna('');
+        setCloseDigit('');
+        setAmount('');
+        // Refresh user data to update balance
+        if (userData?.phone) {
+          await refreshUserData(userData.phone);
+        }
+      } else {
+        console.log('API Error:', result);
+        Alert.alert('Error', result.message || 'Failed to place bid');
+      }
+    } catch (error) {
+      console.error('Bid placement error:', error);
+      Alert.alert('Error', 'Network error. Please try again.');
+    } finally {
+      setIsLoading(false);
     }
-    
-    Alert.alert('Success', `Half Sangam bid added: Open ${openDigit}, Close ${closePanna} for ${amount}`);
   };
 
   const handleStatusSelect = (status: 'OPEN' | 'CLOSE') => {
     setSelectedStatus(status);
+    // Clear fields when switching modes
+    setOpenDigit('');
+    setClosePanna('');
+    setOpenPanna('');
+    setCloseDigit('');
+    setAmount('');
+  };
+
+  const renderInputFields = () => {
+    if (selectedStatus === 'OPEN') {
+      return (
+        <>
+          <View style={styles.inputContainer}>
+            <SuggestiveInput
+              value={openDigit}
+              onChangeText={setOpenDigit}
+              placeholder="Enter Open Digit (0-9)"
+              placeholderTextColor={"black"}
+              keyboardType="numeric"
+              maxLength={1}
+              gameType="SINGLE_DIGIT"
+              style={styles.input}
+            />
+          </View>
+
+          <View style={styles.inputContainer}>
+            <SuggestiveInput
+              value={closePanna}
+              onChangeText={setClosePanna}
+              placeholder="Enter Close Panna"
+              placeholderTextColor={"black"}
+              keyboardType="numeric"
+              maxLength={3}
+              gameType="SINGLE_PANNA"
+              style={styles.input}
+            />
+          </View>
+        </>
+      );
+    } else {
+      return (
+        <>
+          <View style={styles.inputContainer}>
+            <SuggestiveInput
+              value={openPanna}
+              onChangeText={setOpenPanna}
+              placeholder="Enter Open Panna"
+              placeholderTextColor={"black"}
+              keyboardType="numeric"
+              maxLength={3}
+              gameType="SINGLE_PANNA"
+              style={styles.input}
+            />
+          </View>
+
+          <View style={styles.inputContainer}>
+            <SuggestiveInput
+              value={closeDigit}
+              onChangeText={setCloseDigit}
+              placeholder="Enter Close Digit (0-9)"
+              placeholderTextColor={"black"}
+              keyboardType="numeric"
+              maxLength={1}
+              gameType="SINGLE_DIGIT"
+              style={styles.input}
+            />
+          </View>
+        </>
+      );
+    }
   };
 
   return (
@@ -85,7 +252,7 @@ export default function HalfSangamScreen() {
 
       {/* Date and Status Section */}
       <View style={styles.dateCard}>
-        <Text style={styles.dateText}>Mon-04-August-2025</Text>
+        <Text style={styles.dateText}>{useTodayString()}</Text>
         <View style={styles.statusButtons}>
           <TouchableOpacity 
             style={[
@@ -116,34 +283,13 @@ export default function HalfSangamScreen() {
 
       {/* Input Fields */}
       <View style={styles.inputSection}>
-        <View style={styles.inputContainer}>
-          <TextInput
-            style={styles.input}
-            placeholder="Enter Open Digit"
-            value={openDigit}
-            onChangeText={setOpenDigit}
-            keyboardType="numeric"
-            maxLength={1}
-          />
-          <View style={styles.inputLine} />
-        </View>
-
-        <View style={styles.inputContainer}>
-          <TextInput
-            style={styles.input}
-            placeholder="Enter Close Panna"
-            value={closePanna}
-            onChangeText={setClosePanna}
-            keyboardType="numeric"
-            maxLength={3}
-          />
-          <View style={styles.inputLine} />
-        </View>
+        {renderInputFields()}
 
         <View style={styles.inputContainer}>
           <TextInput
             style={styles.input}
             placeholder="Enter Amount"
+            placeholderTextColor={"black"}
             value={amount}
             onChangeText={setAmount}
             keyboardType="numeric"
@@ -153,8 +299,14 @@ export default function HalfSangamScreen() {
       </View>
 
       {/* Add Bid Button */}
-      <TouchableOpacity style={styles.addBidButton} onPress={handleAddBid}>
-        <Text style={styles.addBidText}>ADD BID</Text>
+      <TouchableOpacity 
+        style={[styles.addBidButton, !hasBalance && styles.disabledButton]} 
+        onPress={handleAddBid}
+        disabled={isLoading || !hasBalance}
+      >
+        <Text style={styles.addBidText}>
+          {isLoading ? 'PLACING BID...' : 'ADD BID'}
+        </Text>
       </TouchableOpacity>
     </SafeAreaView>
   );
@@ -285,6 +437,9 @@ const styles = StyleSheet.create({
     paddingVertical: theme.spacing.lg,
     borderRadius: theme.borderRadius.lg,
     alignItems: 'center',
+  },
+  disabledButton: {
+    backgroundColor: theme.colors.lightGray,
   },
   addBidText: {
     color: theme.colors.white,

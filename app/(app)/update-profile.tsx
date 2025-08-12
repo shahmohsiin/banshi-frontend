@@ -18,7 +18,7 @@ import { theme } from '../theme';
 
 export default function ProfileScreen() {
   const [sidebarVisible, setSidebarVisible] = useState(false);
-  const { userData, updateUserData } = useUser();
+  const { userData, clearUserData, updateUserData } = useUser();
   const [name, setName] = useState('');
   const [isUpdating, setIsUpdating] = useState(false);
 
@@ -29,11 +29,60 @@ export default function ProfileScreen() {
     }
   }, [userData]);
 
-  
+ 
   const phone = userData?.phone || '';
 
- 
+  const handleLogout = () => {
+    Alert.alert(
+      'Logout',
+      'Are you sure you want to logout?',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Logout',
+          style: 'destructive',
+          onPress: async () => {
+            // Clear user data and navigate to login
+            await clearUserData();
+            router.replace('/');
+            // Navigation will be handled automatically by the layout
+            console.log('Logout successful, user data cleared');
+          },
+        },
+      ]
+    );
+  };
 
+  const handleEditProfile = async () => {
+    if (!userData?.userId) {
+      Alert.alert('Error', 'User ID not found. Please try logging in again.');
+      return;
+    }
+
+    if (!name.trim()) {
+      Alert.alert('Error', 'Please enter a valid name');
+      return;
+    }
+
+    setIsUpdating(true);
+    
+    try {
+      await updateUserName(userData.userId, name.trim());
+      
+      // Update local user data
+      updateUserData({ name: name.trim() });
+      
+      Alert.alert('Success', 'Profile updated successfully!');
+    } catch (error) {
+      console.error('Error updating profile:', error);
+      Alert.alert('Error', 'Failed to update profile. Please try again.');
+    } finally {
+      setIsUpdating(false);
+    }
+  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -45,7 +94,7 @@ export default function ProfileScreen() {
         >
           <Ionicons name="arrow-back" size={24} color={theme.colors.black} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Profile</Text>
+        <Text style={styles.headerTitle}>Edit Profile</Text>
         <View style={styles.placeholder} />
       </View>
 
@@ -55,14 +104,21 @@ export default function ProfileScreen() {
           {/* Name Field */}
           <View style={styles.inputGroup}>
             <Text style={styles.inputLabel}>Name</Text>
-            <View style={styles.inputContainer}>
+            <View style={styles.inputEdit}>
               <Ionicons name="person" size={20} color={theme.colors.black} style={styles.inputIcon} />
-              <Text style={styles.displayText}>{name}</Text>
+              <TextInput
+                
+                value={name}
+                onChangeText={setName}
+                placeholder="Enter name"
+
+                placeholderTextColor={theme.colors.darkGray}
+              />
             </View>
           </View>
 
           {/* Email Field */}
-          
+         
 
           {/* Phone Field */}
           <View style={styles.inputGroup}>
@@ -77,11 +133,11 @@ export default function ProfileScreen() {
         {/* Edit Profile Button */}
         <TouchableOpacity 
           style={[styles.editButton, isUpdating && styles.editButtonDisabled]} 
-          onPress={() => router.push('/(app)/update-profile')}
+          onPress={handleEditProfile}
           disabled={isUpdating}
         >
           <Text style={styles.editButtonText}>
-            {'EDIT PROFILE'}
+            {isUpdating ? 'UPDATING...' : 'UPDATE'}
           </Text>
         </TouchableOpacity>
       </ScrollView>
@@ -149,7 +205,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: theme.spacing.md,
     height: 50,
     borderWidth: 1,
-    borderColor: theme.colors.lightGray,
+    borderColor: theme.colors.darkGray,
+  },
+  inputEdit:{
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: theme.colors.white,
+    borderRadius: theme.borderRadius.md,
+    paddingHorizontal: theme.spacing.md,
+    height: 50,
+    borderWidth: 1,
+    borderColor: "green",
   },
   inputIcon: {
     marginRight: theme.spacing.sm,
@@ -165,7 +231,7 @@ const styles = StyleSheet.create({
     color: theme.colors.darkGray,
   },
   editButton: {
-    backgroundColor: theme.colors.primary,
+    backgroundColor: "#ebae34",
     borderRadius: theme.borderRadius.md,
     paddingVertical: theme.spacing.lg,
     alignItems: 'center',

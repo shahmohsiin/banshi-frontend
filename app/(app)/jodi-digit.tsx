@@ -1,18 +1,21 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useState } from 'react';
+import useTodayString from '../hooks/date';
 import {
   ActivityIndicator,
   Alert,
   SafeAreaView,
   StyleSheet,
   Text,
-  TextInput,
   TouchableOpacity,
   View,
+  TextInput,
 } from 'react-native';
 import { useUser } from '../contexts/UserContext';
 import { theme } from '../theme';
+import { placeBid } from '../config/api';
+import SuggestiveInput from '../components/SuggestiveInput';
 
 export default function JodiDigitScreen() {
   const { gameName, gameId } = useLocalSearchParams();
@@ -81,25 +84,17 @@ export default function JodiDigitScreen() {
     console.log('Sending bid request:', requestBody);
 
     try {
-      const response = await fetch('https://71761c8318d5.ngrok-free.app/api/bids/place', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(requestBody),
-      });
-
-      const result = await response.json();
+      const result = await placeBid(requestBody);
       console.log('API Response:', result);
 
-      if ( result.success) {
+      if (result.success) {
         Alert.alert('Success', 'Bid placed successfully!');
         // Reset form
         setDigit('');
         setAmount('');
       } else {
         console.log('API Error:', result);
-        Alert.alert( result.message || 'Failed to place bid');
+        Alert.alert('Error', result.message || 'Failed to place bid');
         setDigit('');
         setAmount('');
       }
@@ -160,28 +155,30 @@ export default function JodiDigitScreen() {
 
       {/* Date Section (No OPEN/CLOSE buttons) */}
       <View style={styles.dateCard}>
-        <Text style={styles.dateText}>Mon-04-August-2025</Text>
+        <Text style={styles.dateText}>{useTodayString()}</Text>
       </View>
 
       {/* Input Fields */}
       <View style={styles.inputSection}>
         <View style={styles.inputContainer}>
-          <TextInput
-            style={[styles.input, !hasBalance && styles.disabledInput]}
-            placeholder={hasBalance ? "Enter Jodi Digit (00-99)" : "Add funds to place bid"}
+          <SuggestiveInput
             value={digit}
             onChangeText={handleDigitChange}
+            placeholder={hasBalance ? "Enter Jodi Digit (00-99)" : "Add funds to place bid"}
+            placeholderTextColor={"black"}
             keyboardType="numeric"
             maxLength={2}
             editable={!isLoading && hasBalance}
+            gameType="JODI_DIGIT"
+            style={[styles.input, !hasBalance && styles.disabledInput]}
           />
-          <View style={styles.inputLine} />
         </View>
 
         <View style={styles.inputContainer}>
-          <TextInput
+        <TextInput
             style={[styles.input, !hasBalance && styles.disabledInput]}
             placeholder={hasBalance ? "Enter Amount" : "Add funds to place bid"}
+            placeholderTextColor={"black"}
             value={amount}
             onChangeText={handleAmountChange}
             keyboardType="numeric"

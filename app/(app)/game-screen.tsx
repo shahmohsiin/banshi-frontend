@@ -1,8 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import React from 'react';
-import { Image, SafeAreaView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { theme } from '../theme';
+import { Image, SafeAreaView, StyleSheet, Text, TouchableOpacity, View, Dimensions, ScrollView } from 'react-native';
+import { useTheme } from '../contexts/ThemeContext';
 
 const gameOptions = [
   { label: 'Single Digit', icon: require('../../assets/icons/single.png'), color: '#FF6B35', bgColor: '#FFF3E0' },
@@ -14,65 +14,71 @@ const gameOptions = [
   { label: 'Full Sangam', icon: require('../../assets/icons/sangam.png'), color: '#E91E63', bgColor: '#FCE4EC' },
 ];
 
-const fourGameOptions = [
-  { label: 'Single Digit', icon: require('../../assets/icons/single.png'), color: '#FF6B35', bgColor: '#FFF3E0' },
+const GameOptions4=[
+   { label: 'Single Digit', icon: require('../../assets/icons/single.png'), color: '#FF6B35', bgColor: '#FFF3E0' },
   { label: 'Single Panna', icon: require('../../assets/icons/single-panna.png'), color: '#25D366', bgColor: '#E8F5E8' },
   { label: 'Double Panna', icon: require('../../assets/icons/double-panna.png'), color: '#0088CC', bgColor: '#E3F2FD' },
   { label: 'Triple Panna', icon: require('../../assets/icons/tripple-panna.png'), color: '#9C27B0', bgColor: '#F3E5F5' },
-];
+]
+
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const GRID_COLUMNS = 2;
+const GRID_GAP = 16;
+const ITEM_WIDTH = (SCREEN_WIDTH - 16 * 2 - GRID_GAP) / GRID_COLUMNS; // 16px horizontal padding on each side
 
 export default function GameScreen() {
-  const { gameName, openTime, closeTime } = useLocalSearchParams();
+  const { gameName, gameId, openTime, closeTime } = useLocalSearchParams();
+  const { theme } = useTheme();
 
   const now = new Date();
   const open = new Date(openTime as string);
   const close = new Date(closeTime as string);
-  
-  // Generate gameId from gameName for now
-  const gameId = gameName?.toString().toLowerCase().replace(/\s+/g, '_') || 'default_game';
+
+  // Use actual gameId from paramsa
+  const actualGameId = gameId as string;
 
   const handleGameTypePress = (gameType: string) => {
     switch (gameType) {
       case 'Single Digit':
         router.push({
           pathname: '/(app)/single-digit',
-          params: { gameName, gameId },
+          params: { gameName, gameId: actualGameId },
         });
         break;
       case 'Jodi Digit':
         router.push({
           pathname: '/(app)/jodi-digit',
-          params: { gameName, gameId },
+          params: { gameName, gameId: actualGameId },
         });
         break;
       case 'Single Panna':
         router.push({
           pathname: '/(app)/single-panna',
-          params: { gameName },
+          params: { gameName, gameId: actualGameId },
         });
         break;
       case 'Double Panna':
         router.push({
           pathname: '/(app)/double-panna',
-          params: { gameName },
+          params: { gameName, gameId: actualGameId },
         });
         break;
       case 'Triple Panna':
         router.push({
           pathname: '/(app)/triple-panna',
-          params: { gameName },
+          params: { gameName, gameId: actualGameId },
         });
         break;
       case 'Half Sangam':
         router.push({
           pathname: '/(app)/half-sangam',
-          params: { gameName },
+          params: { gameName, gameId: actualGameId },
         });
         break;
       case 'Full Sangam':
         router.push({
           pathname: '/(app)/full-sangam',
-          params: { gameName },
+          params: { gameName, gameId: actualGameId },
         });
         break;
       default:
@@ -84,76 +90,91 @@ export default function GameScreen() {
     }
   };
 
-  const renderGameOption = (option: any) => (
-    <TouchableOpacity 
-      key={option.label} 
-      style={[styles.optionBox, { backgroundColor: option.bgColor }]}
-      onPress={() => handleGameTypePress(option.label)}
-    >
-      <View style={[styles.iconContainer, { backgroundColor: theme.colors.white }]}>
-        <Image source={option.icon} style={styles.gameIcon} resizeMode="contain" />
-      </View>
-      <Text style={styles.optionLabel}>{option.label}</Text>
-    </TouchableOpacity>
-  );
-
-  // Check if game is closed
-  const isGameClosed = now >= close;
-
-  if (isGameClosed) {
-    // Show game closed
-    return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.header}>
-          <Text style={styles.title}>{gameName}</Text>
-          <View style={[styles.statusBadge, styles.closedBadge]}>
-            <Ionicons name="close-circle" size={16} color={theme.colors.red} />
-            <Text style={[styles.statusText, styles.closedStatusText]}>CLOSED</Text>
-          </View>
+  const renderGameOptionsGrid = () => {
+    // Time-based filtering logic
+    const isGameRunning = now >= open && now < close;
+    const isBeforeGame = now < open;
+    
+    console.log('=== GAME FILTERING DEBUG ===');
+    console.log('Current time:', now.toISOString());
+    console.log('Opening time:', open.toISOString());
+    console.log('Closing time:', close.toISOString());
+    console.log('Is game running (between open & close):', isGameRunning);
+    console.log('Is before game (before open):', isBeforeGame);
+    
+    // Filter games based on time
+    let filteredGameOptions = gameOptions;
+    
+    if (isGameRunning) {
+      // Show only 4 games when game is running
+      filteredGameOptions = GameOptions4;
+      console.log('🎯 GAME RUNNING: Showing 4 games only');
+      console.log('Filtered games:', filteredGameOptions.map(g => g.label));
+    } else if (isBeforeGame) {
+      // Show all 7 games when before opening
+      filteredGameOptions = gameOptions;
+      console.log('⏰ BEFORE GAME: Showing all 7 games');
+      console.log('All games:', filteredGameOptions.map(g => g.label));
+    } else {
+      // Game is closed - show all 7 games
+      filteredGameOptions = gameOptions;
+      console.log('🔒 GAME CLOSED: Showing all 7 games');
+      console.log('All games:', filteredGameOptions.map(g => g.label));
+    }
+    
+    console.log('Final games to display:', filteredGameOptions.length);
+    console.log('=== END GAME FILTERING DEBUG ===');
+    
+    const rows = [];
+    for (let i = 0; i < filteredGameOptions.length; i += GRID_COLUMNS) {
+      const rowItems = filteredGameOptions.slice(i, i + GRID_COLUMNS);
+      rows.push(
+        <View key={i} style={{ flexDirection: 'row', marginBottom: i + GRID_COLUMNS < filteredGameOptions.length ? GRID_GAP : 0 }}>
+          {rowItems.map((option, colIdx) => (
+            <TouchableOpacity
+              key={option.label}
+              style={[
+                styles.gameOption,
+                {
+                  backgroundColor: theme.colors.card,
+                  borderColor: theme.colors.border,
+                  shadowColor: theme.colors.text,
+                  width: ITEM_WIDTH,
+                  marginRight: colIdx === GRID_COLUMNS - 1 ? 0 : GRID_GAP,
+                },
+              ]}
+              onPress={() => handleGameTypePress(option.label)}
+            >
+              <View style={[styles.iconContainer, { backgroundColor: option.bgColor }]}>
+                <Image source={option.icon} style={styles.icon} />
+              </View>
+              <Text style={[styles.gameLabel, { color: theme.colors.text }]}>{option.label}</Text>
+            </TouchableOpacity>
+          ))}
         </View>
-
-        <View style={styles.closedContainer}>
-          <View style={styles.closedIconContainer}>
-            <Ionicons name="lock-closed" size={48} color={theme.colors.red} />
-          </View>
-          <Text style={styles.closedText}>Game Session Ended</Text>
-          <Text style={styles.closedSubtext}>This game is no longer available</Text>
-        </View>
-      </SafeAreaView>
-    );
-  }
-
-  // Game is not closed - determine which options to show
-  const isGameLive = now >= open && now < close;
-  const gameOptionsToShow = isGameLive ? fourGameOptions : gameOptions;
+      );
+    }
+    return rows;
+  };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.title}>{gameName}</Text>
-        <View style={styles.statusBadge}>
-          <Ionicons name="play-circle" size={16} color={theme.colors.green} />
-          <Text style={styles.statusText}>
-            {isGameLive ? 'LIVE' : 'PREPARING'}
-          </Text>
-        </View>
-      </View>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}> 
+      {/* Header */}
+      
+      <View style={[styles.header, { backgroundColor: theme.colors.primary }]}> 
+        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}> 
+          <Ionicons name="arrow-back" size={24} color={theme.colors.white} /> 
+        </TouchableOpacity> 
+        <Text style={styles.headerTitle}>{gameName}</Text> 
+        <View style={styles.placeholder} /> 
+      </View> 
 
-      <View style={styles.content}>
-        {/* Game Status Info */}
-        <View style={styles.statusInfo}>
-          <Text style={styles.statusInfoText}>
-            {isGameLive 
-              ? 'Game is now live! Only 4 game types available.' 
-              : 'Game will start soon. All 7 game types available.'
-            }
-          </Text>
-        </View>
+      {/* Game Options */}
+      <View style={styles.content}> 
         
-        <View style={styles.gridContainer}>
-          {gameOptionsToShow.map(renderGameOption)}
-        </View>
+        <ScrollView style={styles.gameOptionsGrid}>{renderGameOptionsGrid()}</ScrollView> 
       </View>
+       
     </SafeAreaView>
   );
 }
@@ -161,137 +182,67 @@ export default function GameScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: theme.colors.white,
   },
   header: {
-    backgroundColor: theme.colors.primary,
-    paddingTop: 50,
-    paddingHorizontal: theme.spacing.lg,
-    paddingBottom: theme.spacing.lg,
     flexDirection: 'row',
+    alignItems: 'center',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    paddingTop: 50,
   },
-  title: {
-    color: theme.colors.white,
-    fontSize: 24,
+  backButton: {
+    padding: 4,
+  },
+  headerTitle: {
+    fontSize: 18,
     fontWeight: 'bold',
-    flex: 1,
-    textTransform: 'uppercase',
+    color: '#FFFFFF',
   },
-  statusBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(37, 211, 102, 0.2)',
-    paddingHorizontal: theme.spacing.sm,
-    paddingVertical: theme.spacing.xs,
-    borderRadius: theme.borderRadius.md,
-  },
-  closedBadge: {
-    backgroundColor: 'rgba(255, 0, 0, 0.2)',
-  },
-  statusText: {
-    color: theme.colors.green,
-    fontSize: 12,
-    fontWeight: 'bold',
-    marginLeft: theme.spacing.xs,
-  },
-  closedStatusText: {
-    color: theme.colors.red,
+  placeholder: {
+    width: 32,
   },
   content: {
     flex: 1,
-    paddingHorizontal: theme.spacing.lg,
-    paddingTop: theme.spacing.lg,
-  },
-  statusInfo: {
-    backgroundColor: theme.colors.lightGray,
-    padding: theme.spacing.md,
-    borderRadius: theme.borderRadius.md,
-    marginBottom: theme.spacing.lg,
-  },
-  statusInfoText: {
-    fontSize: 14,
-    color: theme.colors.darkGray,
-    textAlign: 'center',
-    fontWeight: '500',
+    padding: 16,
   },
   sectionTitle: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: 'bold',
-    color: theme.colors.black,
-    marginBottom: theme.spacing.lg,
+    marginBottom: 24,
+    textAlign: 'center',
   },
-  gridContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
+  gameOptionsGrid: {
+    // No gap here, handled in renderGameOptionsGrid
   },
-  optionBox: {
-    width: '48%',
+  gameOption: {
     aspectRatio: 1,
-    borderRadius: theme.borderRadius.lg,
-    padding: theme.spacing.md,
-    marginBottom: theme.spacing.md,
-    justifyContent: 'center',
+    borderRadius: 16,
+    padding: 16,
     alignItems: 'center',
-    shadowColor: theme.colors.black,
+    justifyContent: 'center',
+    borderWidth: 1,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
   },
   iconContainer: {
-    width: 80,
-    height: 80,
-    borderRadius: 90,
-    justifyContent: 'center',
+    width: 60,
+    height: 60,
+    borderRadius: 30,
     alignItems: 'center',
-    marginBottom: theme.spacing.sm,
-    shadowColor: theme.colors.black,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  optionLabel: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: theme.colors.black,
-    textAlign: 'center',
-    letterSpacing: 0.3,
-  },
-  closedContainer: {
-    flex: 1,
     justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: theme.spacing.lg,
+    marginBottom: 12,
   },
-  closedIconContainer: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: 'rgba(255, 0, 0, 0.1)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: theme.spacing.lg,
-    borderWidth: 2,
-    borderColor: 'rgba(255, 0, 0, 0.2)',
-  },
-  closedText: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: theme.colors.red,
-    textAlign: 'center',
-    marginBottom: theme.spacing.sm,
-  },
-  closedSubtext: {
-    fontSize: 14,
-    color: theme.colors.darkGray,
-    textAlign: 'center',
-  },
-  gameIcon: {
+  icon: {
     width: 40,
     height: 40,
+    resizeMode: 'contain',
+  },
+  gameLabel: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    textAlign: 'center',
   },
 }); 

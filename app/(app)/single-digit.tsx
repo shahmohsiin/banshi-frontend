@@ -1,18 +1,20 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useState } from 'react';
+import useTodayString from '../hooks/date';
 import {
   ActivityIndicator,
   Alert,
   SafeAreaView,
   StyleSheet,
   Text,
-  TextInput,
   TouchableOpacity,
-  View,
+  View,TextInput
 } from 'react-native';
 import { useUser } from '../contexts/UserContext';
 import { theme } from '../theme';
+import { placeBid } from '../config/api';
+import SuggestiveInput from '../components/SuggestiveInput';
 
 export default function SingleDigitScreen() {
   const { gameName, gameId } = useLocalSearchParams();
@@ -82,25 +84,17 @@ export default function SingleDigitScreen() {
     console.log('Sending bid request:', requestBody);
 
     try {
-      const response = await fetch('https://71761c8318d5.ngrok-free.app/api/bids/place', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(requestBody),
-      });
-
-      const result = await response.json();
+      const result = await placeBid(requestBody);
       console.log('API Response:', result);
 
-      if (response.ok && result.success) {
+      if (result.success) {
         Alert.alert('Success', 'Bid placed successfully!');
         // Reset form
         setDigit('');
         setAmount('');
       } else {
         console.log('API Error:', result);
-        Alert.alert(result.message || 'Failed to place bid');
+        Alert.alert('Error', result.message || 'Failed to place bid');
       }
     } catch (error) {
       console.error('Bid placement error:', error);
@@ -164,7 +158,7 @@ export default function SingleDigitScreen() {
 
       {/* Date and Status Section */}
       <View style={styles.dateCard}>
-        <Text style={styles.dateText}>Mon-04-August-2025</Text>
+        <Text style={styles.dateText}>{useTodayString()}</Text>
         <View style={styles.statusButtons}>
           <TouchableOpacity 
             style={[
@@ -202,22 +196,24 @@ export default function SingleDigitScreen() {
       {/* Input Fields */}
       <View style={styles.inputSection}>
         <View style={styles.inputContainer}>
-          <TextInput
-            style={[styles.input, !hasBalance && styles.disabledInput]}
-            placeholder={hasBalance ? "Enter Single Digit (0-9)" : "Add funds to place bid"}
+          <SuggestiveInput
             value={digit}
             onChangeText={handleDigitChange}
+            placeholder={hasBalance ? "Enter Single Digit (0-9)" : "Add funds to place bid"}
+            placeholderTextColor={"black"}
             keyboardType="numeric"
             maxLength={1}
             editable={!isLoading && hasBalance}
+            gameType="SINGLE_DIGIT"
+            style={[styles.input, !hasBalance && styles.disabledInput]}
           />
-          <View style={styles.inputLine} />
         </View>
 
         <View style={styles.inputContainer}>
-          <TextInput
+        <TextInput
             style={[styles.input, !hasBalance && styles.disabledInput]}
             placeholder={hasBalance ? "Enter Amount" : "Add funds to place bid"}
+            placeholderTextColor={"black"}
             value={amount}
             onChangeText={handleAmountChange}
             keyboardType="numeric"
@@ -353,10 +349,12 @@ const styles = StyleSheet.create({
   inputSection: {
     flex: 1,
     paddingHorizontal: theme.spacing.lg,
-    gap: theme.spacing.xl,
+    
+color:'black'
   },
   inputContainer: {
     marginBottom: theme.spacing.lg,
+    
   },
   input: {
     fontSize: 16,
@@ -364,6 +362,7 @@ const styles = StyleSheet.create({
     paddingVertical: theme.spacing.md,
     paddingHorizontal: theme.spacing.sm,
   },
+
   inputLine: {
     height: 1,
     backgroundColor: theme.colors.lightGray,
