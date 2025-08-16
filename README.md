@@ -2,6 +2,11 @@
 
 A modern, feature-rich mobile application built with React Native and Expo for playing various number-based games with real-time betting and wallet management.
 
+ <img src="ss/ss3.jpeg" alt="ss1" width="200" > <img src="ss/ss2.jpeg" alt="ss1" width="200" > <img src="ss/ss1.jpeg" alt="ss1" width="200" >
+
+
+
+
 ## ✨ What is BANSHI?
 
 BANSHI is a mobile gaming app that offers multiple number-based games where users can place bets and potentially win rewards. It's designed with a clean, intuitive interface and includes features like wallet management, game history, and real-time updates.
